@@ -1,37 +1,39 @@
-use std::io;
+use std::{
+    io,
+    process::{Child, Command, Stdio},
+};
 
 use ratatui::{
     DefaultTerminal,
-    crossterm::{self, event::KeyCode},
+    crossterm::{
+        self,
+        event::{KeyCode, KeyModifiers},
+    },
     prelude::*,
-    text::ToLine,
     widgets::Block,
 };
 use v4l::Device;
 
+#[derive(Default)]
 pub struct App {
-    running: bool,
+    quit: bool,
     devices: Vec<Device>,
-}
-
-impl Default for App {
-    fn default() -> Self {
-        Self {
-            running: true,
-            devices: Vec::new(),
-        }
-    }
+    selected_device_index: Option<usize>,
+    ffplay_child: Option<Child>,
 }
 
 impl App {
     pub fn new() -> io::Result<Self> {
-        let mut s = Self::default();
+        let mut s = Self {
+            selected_device_index: Some(1),
+            ..Default::default()
+        };
         s.refresh_devices()?;
         Ok(s)
     }
 
     pub fn run(&mut self, terminal: &mut DefaultTerminal) -> io::Result<()> {
-        while self.running {
+        while !self.quit {
             terminal.draw(|frame| frame.render_widget(&*self, frame.area()))?;
 
             self.handle_keypresses()?;
@@ -47,9 +49,27 @@ impl App {
         };
 
         match key_event.code {
-            KeyCode::Char('q') => self.running = false,
+            KeyCode::Char('c') if key_event.modifiers.contains(KeyModifiers::CONTROL) => {
+                self.quit = true
+            }
+            KeyCode::Char('q') => self.quit = true,
             KeyCode::Char('r') => self.refresh_devices()?,
+            KeyCode::Char('p') => self.start_preview()?,
             _ => (),
+        }
+
+        Ok(())
+    }
+
+    fn start_preview(&mut self) -> io::Result<()> {
+        if let Some(i) = self.selected_device_index {
+            self.ffplay_child = Some(
+                Command::new("ffplay")
+                    .arg(format!("/dev/video{}", i))
+                    .stderr(Stdio::null())
+                    .stdout(Stdio::null())
+                    .spawn()?,
+            );
         }
 
         Ok(())
@@ -76,9 +96,5 @@ impl Widget for &App {
         (&block).render(area, buf);
 
         let inner_area = block.inner(area);
-
-        // for (i, device) in self.devices.iter().enumerate() {
-        // }
-        self.devices.len().to_line().render(inner_area, buf);
     }
 }
