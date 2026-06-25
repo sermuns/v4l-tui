@@ -31,7 +31,9 @@ pub struct App {
 enum FocusedBlock {
     #[default]
     DevicesTable,
-    DeviceConfig(Device),
+    DeviceConfig {
+        device_index: usize,
+    },
 }
 
 enum Action {
@@ -39,6 +41,7 @@ enum Action {
     MoveDown,
     MoveLeft,
     MoveRight,
+    Confirm,
 }
 
 impl App {
@@ -76,16 +79,7 @@ impl App {
         Ok(())
     }
 
-    fn draw(&mut self, frame: &mut Frame) {
-        let area = frame.area();
-
-        let block = Block::bordered()
-            .title(concat!(" ", env!("CARGO_PKG_NAME"), " ").bold())
-            .title_alignment(HorizontalAlignment::Center);
-        frame.render_widget(&block, area);
-
-        let inner_area = block.inner(area);
-
+    fn draw_devices_table(&mut self, frame: &mut Frame, area: Rect) {
         const HEADER: [&str; 3] = ["Index", "Card", "Bus"];
         const WIDTHS: [Constraint; HEADER.len()] = [
             Constraint::Length(HEADER[0].len() as u16),
@@ -117,9 +111,25 @@ impl App {
 
         frame.render_stateful_widget(
             Table::new(rows, WIDTHS).header(Row::new(HEADER)),
-            inner_area,
+            area,
             &mut self.devices_table_state,
         );
+    }
+
+    fn draw(&mut self, frame: &mut Frame) {
+        let area = frame.area();
+
+        let block = Block::bordered()
+            .title(concat!(" ", env!("CARGO_PKG_NAME"), " ").bold())
+            .title_alignment(HorizontalAlignment::Center);
+        frame.render_widget(&block, area);
+
+        let inner_area = block.inner(area);
+
+        match self.focused_block {
+            FocusedBlock::DevicesTable => self.draw_devices_table(frame, inner_area),
+            FocusedBlock::DeviceConfig { device_index } => todo!(),
+        }
 
         if let Some(notification) = &self.notification {
             let notification_area = Rect {
@@ -152,6 +162,7 @@ impl App {
             KeyCode::Char('j') | KeyCode::Down => self.perform_action(Action::MoveDown),
             KeyCode::Char('h') | KeyCode::Left => self.perform_action(Action::MoveLeft),
             KeyCode::Char('l') | KeyCode::Right => self.perform_action(Action::MoveRight),
+            KeyCode::Char(' ') | KeyCode::Enter => self.perform_action(Action::Confirm),
             _ => (),
         }
 
@@ -171,9 +182,15 @@ impl App {
                 Action::MoveDown => {
                     self.devices_table_state.select_next();
                 }
+                Action::Confirm
+                    if let Some(i) = self.devices_table_state.selected()
+                        && self.devices.get(i).is_some() =>
+                {
+                    self.focused_block = FocusedBlock::DeviceConfig { device_index: i };
+                }
                 _ => (),
             },
-            FocusedBlock::DeviceConfig(..) => todo!(),
+            FocusedBlock::DeviceConfig { .. } => todo!(),
         }
     }
 
