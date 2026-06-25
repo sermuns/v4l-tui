@@ -2,20 +2,27 @@ use std::time::{Duration, Instant};
 
 use ratatui::{
     prelude::*,
-    widgets::{Block, Clear, Paragraph, Wrap},
+    widgets::{Block, BorderType, Paragraph},
 };
+
+pub enum Severity {
+    Info,
+    Error,
+}
 
 pub struct Notification {
     message: String,
+    severity: Severity,
     dead_by: Instant,
 }
 
 const DURATION: Duration = Duration::from_secs(3);
 
 impl Notification {
-    pub fn new(message: String) -> Self {
+    pub fn new(message: String, severity: Severity) -> Self {
         Self {
             message,
+            severity,
             dead_by: Instant::now() + DURATION,
         }
     }
@@ -29,9 +36,16 @@ impl Notification {
 
 impl Widget for &Notification {
     fn render(self, area: Rect, buf: &mut Buffer) {
-        // Clear.render(area, buf);
+        let border_style = match self.severity {
+            Severity::Info => Style::new().green(),
+            Severity::Error => Style::new().red(),
+        };
         Paragraph::new(self.message.as_str())
-            .block(Block::bordered().border_style(Style::new().green()))
+            .block(
+                Block::bordered()
+                    .border_style(border_style)
+                    .border_type(BorderType::Thick),
+            )
             .render(area, buf);
     }
 }

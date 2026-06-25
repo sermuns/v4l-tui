@@ -15,7 +15,7 @@ use ratatui::{
 };
 use v4l::Device;
 
-use crate::notification::Notification;
+use crate::notification::{Notification, Severity};
 
 #[derive(Default)]
 pub struct App {
@@ -66,7 +66,10 @@ impl App {
             && child.try_wait()?.is_some()
         {
             self.ffplay_child = None;
-            self.notification = Some(Notification::new(String::from("Preview closed")));
+            self.notification = Some(Notification::new(
+                String::from("Preview closed"),
+                Severity::Info,
+            ));
         }
 
         Ok(())
