@@ -103,7 +103,7 @@ impl App {
                     .selected()
                     .is_some_and(|selected_index| selected_index == i)
                 {
-                    Style::default().add_modifier(Modifier::REVERSED)
+                    Style::default().reversed()
                 } else {
                     Style::default()
                 },
