@@ -11,7 +11,8 @@ use ratatui::{
         event::{KeyCode, KeyModifiers},
     },
     prelude::*,
-    widgets::{Block, Row, Table, TableState},
+    text::ToLine,
+    widgets::{Block, Paragraph, Row, Table, TableState},
 };
 use v4l::Device;
 
@@ -83,41 +84,47 @@ impl App {
     fn draw_devices_table(&mut self, frame: &mut Frame, area: Rect) {
         const HEADER: [&str; 3] = ["Index", "Card", "Bus"];
         const WIDTHS: [Constraint; HEADER.len()] = [
-            Constraint::Length(HEADER[0].len() as u16),
+            Constraint::Length(HEADER[0].len() as u16 + 1),
             Constraint::Fill(1),
             Constraint::Fill(1),
         ];
 
-        let rows = self.devices.iter().enumerate().filter_map(|(i, device)| {
-            let device = device.as_ref()?;
-
-            let row = if let Ok(caps) = device.query_caps() {
+        let rows = self.devices.iter().enumerate().map(|(i, device)| {
+            if let Some(device) = &device
+                && let Ok(caps) = device.query_caps()
+            {
                 Row::new([i.to_string(), caps.card, caps.bus])
             } else {
-                Row::new([i.to_string(), "N/A".to_owned(), "N/A".to_owned()])
+                Row::new([i.to_string(), "N/A".to_owned(), "N/A".to_owned()].map(|s| s.dim()))
             }
-            .style(
-                if self
-                    .devices_table_state
-                    .selected()
-                    .is_some_and(|selected_index| selected_index == i)
-                {
-                    Style::default().reversed()
-                } else {
-                    Style::default()
-                },
-            );
-            Some(row)
         });
 
         frame.render_stateful_widget(
-            Table::new(rows, WIDTHS).header(Row::new(HEADER)),
+            Table::new(rows, WIDTHS)
+                .header(Row::new(HEADER))
+                .row_highlight_style(Style::default().reversed()),
             area,
             &mut self.devices_table_state,
         );
     }
 
-    fn draw_device_config(&self, frame: &mut Frame, area: Rect, device_index: usize) {}
+    fn draw_device_config(&self, frame: &mut Frame, area: Rect, device_index: usize) {
+        let Some(device) = &self.devices[device_index] else {
+            frame.render_widget(
+                format!(
+                    "Device /dev/video{} not found, how did you get here?",
+                    device_index
+                )
+                .to_line()
+                .centered(),
+                area.centered_vertically(Constraint::Length(1)),
+            );
+            return;
+        };
+
+        let paragraph = Paragraph::new(format!("{:#?}", device.query_controls().unwrap()));
+        frame.render_widget(paragraph, area);
+    }
 
     fn draw(&mut self, frame: &mut Frame) {
         let area = frame.area();
@@ -182,17 +189,33 @@ impl App {
         }
         match self.focused_block {
             FocusedBlock::DevicesTable => match action {
-                Action::MoveUp => {
-                    self.devices_table_state.select_previous();
-                }
-                Action::MoveDown => {
-                    self.devices_table_state.select_next();
-                }
-                Action::Confirm
-                    if let Some(i) = self.devices_table_state.selected()
-                        && self.devices.get(i).is_some() =>
+                Action::MoveUp
+                    if let Some(selected_index) = self.devices_table_state.selected() =>
                 {
-                    self.focused_block = FocusedBlock::DeviceConfig { device_index: i };
+                    if selected_index > 0 {
+                        self.devices_table_state.select_previous();
+                    } else {
+                        self.devices_table_state.select_last();
+                    }
+                }
+                Action::MoveDown
+                    if let Some(selected_index) = self.devices_table_state.selected() =>
+                {
+                    if selected_index < self.devices.len() - 1 {
+                        self.devices_table_state.select_next();
+                    } else {
+                        self.devices_table_state.select_first();
+                    }
+                }
+                Action::Confirm if let Some(i) = self.devices_table_state.selected() => {
+                    if self.devices[i].is_some() {
+                        self.focused_block = FocusedBlock::DeviceConfig { device_index: i };
+                    } else {
+                        self.notification = Some(Notification::new(
+                            format!("Device /dev/video{} not found", i),
+                            Severity::Error,
+                        ));
+                    }
                 }
                 Action::Cancel => self.devices_table_state.select(None),
                 _ => (),
