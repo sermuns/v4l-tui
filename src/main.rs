@@ -1,17 +1,13 @@
 use std::io;
 
-use v4l::prelude::*;
+mod app;
+
+use crate::app::App;
 
 fn main() -> io::Result<()> {
-    let path = "/dev/video0";
-    println!("Using device: {}\n", path);
+    let mut app = App::new()?;
 
-    let dev = Device::with_path(path)?;
-    let controls = dev.query_controls()?;
-
-    for control in controls {
-        println!("{}", control);
-    }
+    ratatui::run(|terminal| app.run(terminal))?;
 
     Ok(())
 }

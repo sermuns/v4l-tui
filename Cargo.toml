@@ -4,4 +4,5 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+ratatui = "0.30"
 v4l = { version = "0.14", features = ["v4l2"] }
