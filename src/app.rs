@@ -1,6 +1,7 @@
 use std::{
     io,
     process::{Child, Command, Stdio},
+    time::Duration,
 };
 
 use ratatui::{
@@ -14,6 +15,8 @@ use ratatui::{
 };
 use v4l::Device;
 
+use crate::notification::Notification;
+
 #[derive(Default)]
 pub struct App {
     quit: bool,
@@ -21,6 +24,7 @@ pub struct App {
     devices_table_state: TableState,
     ffplay_child: Option<Child>,
     focused_block: FocusedBlock,
+    notification: Option<Notification>,
 }
 
 #[derive(Default)]
@@ -48,18 +52,35 @@ impl App {
             terminal.draw(|frame| self.draw(frame))?;
 
             self.handle_keypresses()?;
+            self.handle_ffplay_child()?;
+            if self.notification.as_ref().is_some_and(|n| n.is_dead()) {
+                self.notification = None;
+            }
+        }
+
+        Ok(())
+    }
+
+    fn handle_ffplay_child(&mut self) -> io::Result<()> {
+        if let Some(child) = &mut self.ffplay_child
+            && child.try_wait()?.is_some()
+        {
+            self.ffplay_child = None;
+            self.notification = Some(Notification::new(String::from("Preview closed")));
         }
 
         Ok(())
     }
 
     fn draw(&mut self, frame: &mut Frame) {
-        let block = Block::bordered()
-            .title(concat!(" ", env!("CARGO_PKG_NAME"), " "))
-            .title_alignment(HorizontalAlignment::Center);
-        frame.render_widget(&block, frame.area());
+        let area = frame.area();
 
-        let inner_area = block.inner(frame.area());
+        let block = Block::bordered()
+            .title(concat!(" ", env!("CARGO_PKG_NAME"), " ").bold())
+            .title_alignment(HorizontalAlignment::Center);
+        frame.render_widget(&block, area);
+
+        let inner_area = block.inner(area);
 
         const HEADER: [&str; 3] = ["Index", "Card", "Bus"];
         const WIDTHS: [Constraint; HEADER.len()] = [
@@ -95,11 +116,24 @@ impl App {
             inner_area,
             &mut self.devices_table_state,
         );
+
+        if let Some(notification) = &self.notification {
+            let notification_area = Rect {
+                x: area.x,
+                y: area.bottom() - 3,
+                width: notification.len() as u16 + 2,
+                height: 3,
+            };
+            frame.render_widget(notification, notification_area);
+        }
     }
 
     fn handle_keypresses(&mut self) -> io::Result<()> {
-        use crossterm::event::Event;
-        let Event::Key(key_event) = crossterm::event::read()? else {
+        if !crossterm::event::poll(Duration::from_millis(100))? {
+            return Ok(());
+        }
+
+        let crossterm::event::Event::Key(key_event) = crossterm::event::read()? else {
             return Ok(());
         };
 
