@@ -244,7 +244,24 @@ impl App {
 
     fn refresh_devices(&mut self) {
         for i in 0..self.devices.len() {
-            self.devices[i] = Device::new(i).ok();
+            let Ok(device) = Device::new(i) else {
+                self.devices[i] = None;
+                continue;
+            };
+
+            // remove "Metadata Capture" devices. we only want "Video Capture" devices
+            // https://askubuntu.com/a/1229301
+            if device
+                .query_caps()
+                .unwrap()
+                .capabilities
+                .contains(v4l::capability::Flags::META_CAPTURE)
+            {
+                self.devices[i] = None;
+                continue;
+            }
+
+            self.devices[i] = Some(device);
         }
     }
 }
