@@ -1,4 +1,4 @@
-use std::{io, path::Path};
+use std::io;
 
 use ratatui::{
     DefaultTerminal,
