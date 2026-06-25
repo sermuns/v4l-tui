@@ -31,13 +31,14 @@ pub struct App {
 enum FocusedBlock {
     #[default]
     DevicesTable,
+    DeviceConfig(Device),
 }
 
-enum MoveDir {
-    Up,
-    Down,
-    Left,
-    Right,
+enum Action {
+    MoveUp,
+    MoveDown,
+    MoveLeft,
+    MoveRight,
 }
 
 impl App {
@@ -147,31 +148,32 @@ impl App {
             KeyCode::Char('q') => self.quit = true,
             KeyCode::Char('r') => self.refresh_devices(),
             KeyCode::Char('p') => self.start_preview()?,
-            KeyCode::Char('k') | KeyCode::Up => self.move_focus(MoveDir::Up),
-            KeyCode::Char('j') | KeyCode::Down => self.move_focus(MoveDir::Down),
-            KeyCode::Char('h') | KeyCode::Left => self.move_focus(MoveDir::Left),
-            KeyCode::Char('l') | KeyCode::Right => self.move_focus(MoveDir::Right),
+            KeyCode::Char('k') | KeyCode::Up => self.perform_action(Action::MoveUp),
+            KeyCode::Char('j') | KeyCode::Down => self.perform_action(Action::MoveDown),
+            KeyCode::Char('h') | KeyCode::Left => self.perform_action(Action::MoveLeft),
+            KeyCode::Char('l') | KeyCode::Right => self.perform_action(Action::MoveRight),
             _ => (),
         }
 
         Ok(())
     }
 
-    fn move_focus(&mut self, dir: MoveDir) {
+    fn perform_action(&mut self, action: Action) {
         if self.devices_table_state.selected().is_none() {
             self.devices_table_state.select_first();
             return;
         }
         match self.focused_block {
-            FocusedBlock::DevicesTable => match dir {
-                MoveDir::Up => {
+            FocusedBlock::DevicesTable => match action {
+                Action::MoveUp => {
                     self.devices_table_state.select_previous();
                 }
-                MoveDir::Down => {
+                Action::MoveDown => {
                     self.devices_table_state.select_next();
                 }
                 _ => (),
             },
+            FocusedBlock::DeviceConfig(..) => todo!(),
         }
     }
 
