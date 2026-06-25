@@ -42,6 +42,7 @@ enum Action {
     MoveLeft,
     MoveRight,
     Confirm,
+    Cancel,
 }
 
 impl App {
@@ -116,6 +117,8 @@ impl App {
         );
     }
 
+    fn draw_device_config(&self, frame: &mut Frame, area: Rect, device_index: usize) {}
+
     fn draw(&mut self, frame: &mut Frame) {
         let area = frame.area();
 
@@ -128,7 +131,9 @@ impl App {
 
         match self.focused_block {
             FocusedBlock::DevicesTable => self.draw_devices_table(frame, inner_area),
-            FocusedBlock::DeviceConfig { device_index } => todo!(),
+            FocusedBlock::DeviceConfig { device_index } => {
+                self.draw_device_config(frame, inner_area, device_index)
+            }
         }
 
         if let Some(notification) = &self.notification {
@@ -163,6 +168,7 @@ impl App {
             KeyCode::Char('h') | KeyCode::Left => self.perform_action(Action::MoveLeft),
             KeyCode::Char('l') | KeyCode::Right => self.perform_action(Action::MoveRight),
             KeyCode::Char(' ') | KeyCode::Enter => self.perform_action(Action::Confirm),
+            KeyCode::Esc | KeyCode::Backspace => self.perform_action(Action::Cancel),
             _ => (),
         }
 
@@ -170,7 +176,7 @@ impl App {
     }
 
     fn perform_action(&mut self, action: Action) {
-        if self.devices_table_state.selected().is_none() {
+        if !matches!(action, Action::Cancel) && self.devices_table_state.selected().is_none() {
             self.devices_table_state.select_first();
             return;
         }
@@ -188,9 +194,13 @@ impl App {
                 {
                     self.focused_block = FocusedBlock::DeviceConfig { device_index: i };
                 }
+                Action::Cancel => self.devices_table_state.select(None),
                 _ => (),
             },
-            FocusedBlock::DeviceConfig { .. } => todo!(),
+            FocusedBlock::DeviceConfig { device_index } => match action {
+                Action::Cancel => self.focused_block = FocusedBlock::DevicesTable,
+                _ => (),
+            },
         }
     }
 
