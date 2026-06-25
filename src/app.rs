@@ -101,8 +101,9 @@ impl App {
 
         frame.render_stateful_widget(
             Table::new(rows, WIDTHS)
-                .header(Row::new(HEADER))
-                .row_highlight_style(Style::default().reversed()),
+                .header(Row::new(HEADER).bold().yellow())
+                .row_highlight_style(Style::default().on_dark_gray())
+                .highlight_symbol("-> "),
             area,
             &mut self.devices_table_state,
         );
@@ -130,7 +131,7 @@ impl App {
         let area = frame.area();
 
         let block = Block::bordered()
-            .title(concat!(" ", env!("CARGO_PKG_NAME"), " ").bold())
+            .title(concat!(" ", env!("CARGO_PKG_NAME"), " ").bold().dim())
             .title_alignment(HorizontalAlignment::Center);
         frame.render_widget(&block, area);
 
