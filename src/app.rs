@@ -116,9 +116,9 @@ impl App {
     ) {
         let device = &self.devices[device_index.0];
 
-        let [device_name_area, controls_area] = area
-            .layout(&Layout::horizontal([Constraint::Length(1), Constraint::Fill(1)]).spacing(1));
-        frame.render_widget(device.name().to_line().centered(), device_name_area);
+        let [device_name_area, controls_area] =
+            area.layout(&Layout::vertical([Constraint::Length(1), Constraint::Fill(1)]).spacing(1));
+        frame.render_widget(device.name().dim(), device_name_area);
 
         let integer_controls = device.descriptions().iter().map(|description| {
             let control = device.control(description.id).ok();
