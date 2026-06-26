@@ -175,8 +175,14 @@ impl App {
                     frame.render_widget(Gauge::default().ratio(ratio), visualisation_area);
                 }
                 Value::Boolean(value) => {
-                    let value_string = format!("{} (false..true)", value);
-                    frame.render_widget(value_string, value_area);
+                    let value_string = value.to_string();
+                    frame.render_widget(value_string.as_str(), value_area);
+
+                    let ratio = if value { 1.0 } else { 0.0 };
+                    frame.render_widget(
+                        Gauge::default().ratio(ratio).label(value_string),
+                        visualisation_area,
+                    );
                 }
                 _ => (),
             }

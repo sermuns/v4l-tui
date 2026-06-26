@@ -75,6 +75,8 @@ impl App {
 
                     Action::MoveLeft => device
                         .modify_control(VecIndex(*selected_control_row), Modification::Decrement)?,
+                    Action::Confirm => device
+                        .modify_control(VecIndex(*selected_control_row), Modification::Toggle)?,
 
                     _ => (),
                 }

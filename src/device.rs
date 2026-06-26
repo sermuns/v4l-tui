@@ -26,6 +26,7 @@ pub struct Device {
 pub enum Modification {
     Increment,
     Decrement,
+    Toggle,
 }
 
 impl Device {
@@ -74,6 +75,9 @@ impl Device {
             }
             (Value::Integer(value), Modification::Decrement) if *value > description.minimum => {
                 *value -= description.step as i64;
+            }
+            (Value::Boolean(value), _) => {
+                *value = !*value;
             }
             _ => return Ok(()),
         };
