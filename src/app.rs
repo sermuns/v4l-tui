@@ -195,6 +195,7 @@ impl App {
         let block = Block::bordered()
             .title(concat!(" ", env!("CARGO_PKG_NAME"), " ").bold().dim())
             .title_bottom(self.focused_block.help_text())
+            .border_style(Style::new().yellow())
             .padding(Padding::proportional(1))
             .title_alignment(HorizontalAlignment::Center);
         frame.render_widget(&block, area);
