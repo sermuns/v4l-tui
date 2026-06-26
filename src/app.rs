@@ -12,7 +12,7 @@ use ratatui::{
         event::{KeyCode, KeyModifiers},
     },
     prelude::*,
-    widgets::{Block, Gauge, Row, Table, TableState},
+    widgets::{Block, Gauge, Padding, Row, Table, TableState},
 };
 use v4l::{
     Device,
@@ -38,6 +38,7 @@ enum FocusedBlock {
     DeviceConfig {
         device_index: usize,
         controls: Vec<Description>,
+        selected_row: usize,
     },
 }
 
@@ -56,7 +57,15 @@ impl App {
             devices_table_state: TableState::new().with_selected(1),
             ..Default::default()
         };
+
         app.refresh_devices();
+
+        app.focused_block = FocusedBlock::DeviceConfig {
+            device_index: 1,
+            controls: app.devices[1].as_ref().unwrap().query_controls().unwrap(),
+            selected_row: 0,
+        };
+
         Ok(app)
     }
 
@@ -126,12 +135,16 @@ impl App {
         area: Rect,
         device_index: usize,
         controls: &[Description],
+        selected_row: usize,
     ) {
         let device = self.devices[device_index].as_ref().unwrap();
 
-        let area = area.inner(Margin::new(2, 1));
-
-        let horizontal = Layout::horizontal([Constraint::Min(10), Constraint::Fill(4)]).spacing(1);
+        let horizontal = Layout::horizontal([
+            Constraint::Length(2),
+            Constraint::Length(30),
+            Constraint::Fill(1),
+        ])
+        .spacing(1);
 
         let row_constraints = (0..controls.len()).map(|_| Constraint::Length(1));
         let vertical = Layout::vertical(row_constraints).spacing(1);
@@ -141,9 +154,14 @@ impl App {
             .into_iter()
             .flat_map(|row| row.layout_vec(&horizontal));
 
-        for (control, mut name_cell_gauge_cell) in controls.iter().zip(&cells.chunks(2)) {
-            let name_area = name_cell_gauge_cell.next().unwrap();
-            let gauge_area = name_cell_gauge_cell.next().unwrap();
+        for ((i, control), mut cells_in_row) in controls.iter().enumerate().zip(&cells.chunks(3)) {
+            let selector_area = cells_in_row.next().unwrap();
+            if selected_row == i {
+                frame.render_widget("->".bold().yellow(), selector_area);
+            }
+
+            let name_area = cells_in_row.next().unwrap();
+            let gauge_area = cells_in_row.next().unwrap();
 
             let Ok(current_control) = device.control(control.id) else {
                 continue;
@@ -164,6 +182,7 @@ impl App {
 
         let block = Block::bordered()
             .title(concat!(" ", env!("CARGO_PKG_NAME"), " ").bold().dim())
+            .padding(Padding::proportional(1))
             .title_alignment(HorizontalAlignment::Center);
         frame.render_widget(&block, area);
 
@@ -174,7 +193,8 @@ impl App {
             FocusedBlock::DeviceConfig {
                 device_index,
                 ref controls,
-            } => self.draw_device_config(frame, inner_area, device_index, controls),
+                selected_row,
+            } => self.draw_device_config(frame, inner_area, device_index, controls, selected_row),
         }
 
         if let Some(notification) = &self.notification {
@@ -246,6 +266,7 @@ impl App {
                         self.focused_block = FocusedBlock::DeviceConfig {
                             device_index: i,
                             controls: device.query_controls().unwrap(),
+                            selected_row: 0,
                         };
                     } else {
                         self.notification = Some(Notification::new(
@@ -257,8 +278,26 @@ impl App {
                 Action::Cancel => self.devices_table_state.select(None),
                 _ => (),
             },
-            FocusedBlock::DeviceConfig { .. } => match action {
+            FocusedBlock::DeviceConfig {
+                ref mut selected_row,
+                ref controls,
+                ..
+            } => match action {
                 Action::Cancel => self.focused_block = FocusedBlock::DevicesTable,
+                Action::MoveDown => {
+                    if *selected_row < controls.len() - 1 {
+                        *selected_row += 1;
+                    } else {
+                        *selected_row = 0;
+                    }
+                }
+                Action::MoveUp => {
+                    if *selected_row > 0 {
+                        *selected_row -= 1;
+                    } else {
+                        *selected_row = controls.len() - 1;
+                    }
+                }
                 _ => (),
             },
         }
