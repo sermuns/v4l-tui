@@ -1,10 +1,10 @@
 use std::io;
 
+mod action;
 mod app;
 mod device;
-mod notification;
-mod action;
 mod focused_block;
+mod notification;
 
 use crate::app::App;
 
