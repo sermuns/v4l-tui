@@ -12,19 +12,22 @@ use ratatui::{
         event::{KeyCode, KeyModifiers},
     },
     prelude::*,
+    text::ToLine,
     widgets::{Block, Gauge, Padding, Row, Table, TableState},
 };
-use v4l::{
-    Device,
-    control::{Description, Value},
+use v4l::{Device as V4lDevice, control::Value};
+
+use crate::{
+    device::{Device, DeviceIndex, VecIndex},
+    notification::{Notification, Severity},
 };
 
-use crate::notification::{Notification, Severity};
+const MAX_DEVICE_INDEX: usize = 10;
 
 #[derive(Default)]
 pub struct App {
     quit: bool,
-    devices: [Option<Device>; 10],
+    devices: Vec<Device>,
     devices_table_state: TableState,
     ffplay_child: Option<Child>,
     focused_block: FocusedBlock,
@@ -36,9 +39,8 @@ enum FocusedBlock {
     #[default]
     DevicesTable,
     DeviceConfig {
-        device_index: usize,
-        controls: Vec<Description>,
-        selected_row: usize,
+        device_index: VecIndex,
+        selected_control_row: usize,
     },
 }
 
@@ -59,12 +61,6 @@ impl App {
         };
 
         app.refresh_devices();
-
-        app.focused_block = FocusedBlock::DeviceConfig {
-            device_index: 1,
-            controls: app.devices[1].as_ref().unwrap().query_controls().unwrap(),
-            selected_row: 0,
-        };
 
         Ok(app)
     }
@@ -109,15 +105,10 @@ impl App {
             Constraint::Fill(1),
         ];
 
-        let rows = self.devices.iter().enumerate().map(|(i, device)| {
-            if let Some(device) = &device
-                && let Ok(caps) = device.query_caps()
-            {
-                Row::new([i.to_string(), caps.card, caps.bus])
-            } else {
-                Row::new([i.to_string(), "N/A".to_owned(), "N/A".to_owned()].map(|s| s.dim()))
-            }
-        });
+        let rows = self
+            .devices
+            .iter()
+            .map(|device| Row::new([device.index_str(), device.name(), device.bus()]));
 
         frame.render_stateful_widget(
             Table::new(rows, WIDTHS)
@@ -133,46 +124,53 @@ impl App {
         &self,
         frame: &mut Frame,
         area: Rect,
-        device_index: usize,
-        controls: &[Description],
+        device_index: VecIndex,
         selected_row: usize,
     ) {
-        let device = self.devices[device_index].as_ref().unwrap();
+        let device = &self.devices[device_index.0];
 
+        let [device_name_area, controls_area] = area
+            .layout(&Layout::horizontal([Constraint::Length(1), Constraint::Fill(1)]).spacing(1));
+        frame.render_widget(device.name().to_line().centered(), device_name_area);
+
+        let integer_controls = device.descriptions().iter().filter_map(|description| {
+            let control = device.control(description.id).ok()?;
+            let Value::Integer(value) = control.value else {
+                return None;
+            };
+            Some((description, value))
+        });
+
+        // FIXME: this is a mess, and stupid to clone
+        let row_constraints = (0..integer_controls.clone().count()).map(|_| Constraint::Length(1));
         let horizontal = Layout::horizontal([
             Constraint::Length(2),
             Constraint::Length(30),
             Constraint::Fill(1),
         ])
         .spacing(1);
-
-        let row_constraints = (0..controls.len()).map(|_| Constraint::Length(1));
         let vertical = Layout::vertical(row_constraints).spacing(1);
 
-        let cells = area
+        let cells = controls_area
             .layout_vec(&vertical)
             .into_iter()
             .flat_map(|row| row.layout_vec(&horizontal));
 
-        for ((i, control), mut cells_in_row) in controls.iter().enumerate().zip(&cells.chunks(3)) {
+        for ((i, (description, value)), mut cells_in_row) in
+            integer_controls.enumerate().zip(&cells.chunks(3))
+        {
             let selector_area = cells_in_row.next().unwrap();
             if selected_row == i {
                 frame.render_widget("->".bold().yellow(), selector_area);
             }
 
-            let name_area = cells_in_row.next().unwrap();
+            let control_name_area = cells_in_row.next().unwrap();
             let gauge_area = cells_in_row.next().unwrap();
 
-            let Ok(current_control) = device.control(control.id) else {
-                continue;
-            };
-            let Value::Integer(value) = current_control.value else {
-                continue;
-            };
-            let ratio =
-                (value - control.minimum) as f64 / (control.maximum - control.minimum) as f64;
+            let ratio = (value - description.minimum) as f64
+                / (description.maximum - description.minimum) as f64;
 
-            frame.render_widget(control.name.as_str(), name_area);
+            frame.render_widget(description.name.as_str(), control_name_area);
             frame.render_widget(Gauge::default().ratio(ratio), gauge_area);
         }
     }
@@ -192,9 +190,8 @@ impl App {
             FocusedBlock::DevicesTable => self.draw_devices_table(frame, inner_area),
             FocusedBlock::DeviceConfig {
                 device_index,
-                ref controls,
-                selected_row,
-            } => self.draw_device_config(frame, inner_area, device_index, controls, selected_row),
+                selected_control_row,
+            } => self.draw_device_config(frame, inner_area, device_index, selected_control_row),
         }
 
         if let Some(notification) = &self.notification {
@@ -223,7 +220,9 @@ impl App {
             }
             KeyCode::Char('q') => self.quit = true,
             KeyCode::Char('r') => self.refresh_devices(),
-            KeyCode::Char('p') => self.start_preview()?,
+            KeyCode::Char('p') if let Some(i) = self.devices_table_state.selected() => {
+                self.start_preview(VecIndex(i))?
+            }
             KeyCode::Char('k') | KeyCode::Up => self.perform_action(Action::MoveUp),
             KeyCode::Char('j') | KeyCode::Down => self.perform_action(Action::MoveDown),
             KeyCode::Char('h') | KeyCode::Left => self.perform_action(Action::MoveLeft),
@@ -262,81 +261,74 @@ impl App {
                     }
                 }
                 Action::Confirm if let Some(i) = self.devices_table_state.selected() => {
-                    if let Some(device) = &self.devices[i] {
-                        self.focused_block = FocusedBlock::DeviceConfig {
-                            device_index: i,
-                            controls: device.query_controls().unwrap(),
-                            selected_row: 0,
-                        };
-                    } else {
-                        self.notification = Some(Notification::new(
-                            format!("Device /dev/video{} not found", i),
-                            Severity::Error,
-                        ));
-                    }
+                    self.focused_block = FocusedBlock::DeviceConfig {
+                        device_index: VecIndex(i),
+                        selected_control_row: 0,
+                    };
                 }
                 Action::Cancel => self.devices_table_state.select(None),
                 _ => (),
             },
             FocusedBlock::DeviceConfig {
-                ref mut selected_row,
-                ref controls,
-                ..
-            } => match action {
-                Action::Cancel => self.focused_block = FocusedBlock::DevicesTable,
-                Action::MoveDown => {
-                    if *selected_row < controls.len() - 1 {
-                        *selected_row += 1;
-                    } else {
-                        *selected_row = 0;
+                device_index,
+                ref mut selected_control_row,
+            } => {
+                let device = &self.devices[device_index.0];
+                match action {
+                    Action::Cancel => self.focused_block = FocusedBlock::DevicesTable,
+                    Action::MoveDown => {
+                        if *selected_control_row < device.num_controls() - 1 {
+                            *selected_control_row += 1;
+                        } else {
+                            *selected_control_row = 0;
+                        }
                     }
-                }
-                Action::MoveUp => {
-                    if *selected_row > 0 {
-                        *selected_row -= 1;
-                    } else {
-                        *selected_row = controls.len() - 1;
+                    Action::MoveUp => {
+                        if *selected_control_row > 0 {
+                            *selected_control_row -= 1;
+                        } else {
+                            *selected_control_row = device.num_controls() - 1;
+                        }
                     }
+                    _ => (),
                 }
-                _ => (),
-            },
+            }
         }
     }
 
-    fn start_preview(&mut self) -> io::Result<()> {
-        if let Some(i) = self.devices_table_state.selected() {
-            self.ffplay_child = Some(
-                Command::new("ffplay")
-                    .arg(format!("/dev/video{}", i))
-                    .stderr(Stdio::null())
-                    .stdout(Stdio::null())
-                    .spawn()?,
-            );
-        }
+    fn start_preview(&mut self, VecIndex(i): VecIndex) -> io::Result<()> {
+        let index_str = self.devices[i].index_str();
+        self.ffplay_child = Some(
+            Command::new("ffplay")
+                .arg(format!("/dev/video{}", index_str))
+                .stderr(Stdio::null())
+                .stdout(Stdio::null())
+                .spawn()?,
+        );
 
         Ok(())
     }
 
     fn refresh_devices(&mut self) {
-        for i in 0..self.devices.len() {
-            let Ok(device) = Device::new(i) else {
-                self.devices[i] = None;
+        self.devices.clear();
+
+        for i in 0..MAX_DEVICE_INDEX {
+            let Ok(v4l_device) = V4lDevice::new(i) else {
                 continue;
             };
 
             // remove "Metadata Capture" devices. we only want "Video Capture" devices
             // https://askubuntu.com/a/1229301
-            if device
+            if v4l_device
                 .query_caps()
                 .unwrap()
                 .capabilities
                 .contains(v4l::capability::Flags::META_CAPTURE)
             {
-                self.devices[i] = None;
                 continue;
             }
 
-            self.devices[i] = Some(device);
+            self.devices.push(Device::new(DeviceIndex(i), v4l_device));
         }
     }
 }

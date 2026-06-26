@@ -1,6 +1,7 @@
 use std::io;
 
 mod app;
+mod device;
 mod notification;
 
 use crate::app::App;
