@@ -1,6 +1,9 @@
 use std::io;
 
-use v4l::{Capabilities, Control, Device as V4lDevice, control::Description};
+use v4l::{
+    Capabilities, Control, Device as V4lDevice,
+    control::{Description, Value},
+};
 
 // disambiguate between internal index or outside /dev/video{}-type index
 #[derive(Clone, Copy)]
@@ -51,6 +54,26 @@ impl Device {
 
     pub fn control(&self, id: u32) -> io::Result<Control> {
         self.v4l_device.control(id)
+    }
+
+    pub fn increment_control(&self, VecIndex(i): VecIndex) -> io::Result<()> {
+        let description = &self.control_descriptions[i];
+        let mut control = self.control(description.id)?;
+        let Value::Integer(value) = &mut control.value else {
+            panic!();
+        };
+        *value += description.step as i64;
+        self.v4l_device.set_control(control)
+    }
+
+    pub fn decrement_control(&self, VecIndex(i): VecIndex) -> io::Result<()> {
+        let description = &self.control_descriptions[i];
+        let mut control = self.control(description.id)?;
+        let Value::Integer(value) = &mut control.value else {
+            panic!();
+        };
+        *value -= description.step as i64;
+        self.v4l_device.set_control(control)
     }
 
     pub fn num_controls(&self) -> usize {

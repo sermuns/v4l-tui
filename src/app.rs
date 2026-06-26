@@ -62,6 +62,11 @@ impl App {
 
         app.refresh_devices();
 
+        app.focused_block = FocusedBlock::DeviceConfig {
+            device_index: VecIndex(0),
+            selected_control_row: 0,
+        };
+
         Ok(app)
     }
 
@@ -290,6 +295,15 @@ impl App {
                             *selected_control_row = device.num_controls() - 1;
                         }
                     }
+                    Action::MoveRight => device
+                        .increment_control(VecIndex(*selected_control_row))
+                        .unwrap(),
+                    Action::MoveLeft => {
+                        device
+                            .decrement_control(VecIndex(*selected_control_row))
+                            .unwrap();
+                    }
+
                     _ => (),
                 }
             }
