@@ -4,6 +4,7 @@ use std::{
     time::Duration,
 };
 
+use itertools::Itertools;
 use ratatui::{
     DefaultTerminal,
     crossterm::{
@@ -11,10 +12,12 @@ use ratatui::{
         event::{KeyCode, KeyModifiers},
     },
     prelude::*,
-    text::ToLine,
-    widgets::{Block, Paragraph, Row, Table, TableState},
+    widgets::{Block, Gauge, Row, Table, TableState},
 };
-use v4l::Device;
+use v4l::{
+    Device,
+    control::{Description, Value},
+};
 
 use crate::notification::{Notification, Severity};
 
@@ -34,6 +37,7 @@ enum FocusedBlock {
     DevicesTable,
     DeviceConfig {
         device_index: usize,
+        controls: Vec<Description>,
     },
 }
 
@@ -48,7 +52,10 @@ enum Action {
 
 impl App {
     pub fn new() -> io::Result<Self> {
-        let mut app = Self::default();
+        let mut app = Self {
+            devices_table_state: TableState::new().with_selected(1),
+            ..Default::default()
+        };
         app.refresh_devices();
         Ok(app)
     }
@@ -62,6 +69,10 @@ impl App {
             if self.notification.as_ref().is_some_and(|n| n.is_dead()) {
                 self.notification = None;
             }
+        }
+
+        if let Some(child) = &mut self.ffplay_child {
+            let _ = child.kill();
         }
 
         Ok(())
@@ -109,22 +120,43 @@ impl App {
         );
     }
 
-    fn draw_device_config(&self, frame: &mut Frame, area: Rect, device_index: usize) {
-        let Some(device) = &self.devices[device_index] else {
-            frame.render_widget(
-                format!(
-                    "Device /dev/video{} not found, how did you get here?",
-                    device_index
-                )
-                .to_line()
-                .centered(),
-                area.centered_vertically(Constraint::Length(1)),
-            );
-            return;
-        };
+    fn draw_device_config(
+        &self,
+        frame: &mut Frame,
+        area: Rect,
+        device_index: usize,
+        controls: &[Description],
+    ) {
+        let device = self.devices[device_index].as_ref().unwrap();
 
-        let paragraph = Paragraph::new(format!("{:#?}", device.query_controls().unwrap()));
-        frame.render_widget(paragraph, area);
+        let area = area.inner(Margin::new(2, 1));
+
+        let horizontal = Layout::horizontal([Constraint::Min(10), Constraint::Fill(4)]).spacing(1);
+
+        let row_constraints = (0..controls.len()).map(|_| Constraint::Length(1));
+        let vertical = Layout::vertical(row_constraints).spacing(1);
+
+        let cells = area
+            .layout_vec(&vertical)
+            .into_iter()
+            .flat_map(|row| row.layout_vec(&horizontal));
+
+        for (control, mut name_cell_gauge_cell) in controls.iter().zip(&cells.chunks(2)) {
+            let name_area = name_cell_gauge_cell.next().unwrap();
+            let gauge_area = name_cell_gauge_cell.next().unwrap();
+
+            let Ok(current_control) = device.control(control.id) else {
+                continue;
+            };
+            let Value::Integer(value) = current_control.value else {
+                continue;
+            };
+            let ratio =
+                (value - control.minimum) as f64 / (control.maximum - control.minimum) as f64;
+
+            frame.render_widget(control.name.as_str(), name_area);
+            frame.render_widget(Gauge::default().ratio(ratio), gauge_area);
+        }
     }
 
     fn draw(&mut self, frame: &mut Frame) {
@@ -139,9 +171,10 @@ impl App {
 
         match self.focused_block {
             FocusedBlock::DevicesTable => self.draw_devices_table(frame, inner_area),
-            FocusedBlock::DeviceConfig { device_index } => {
-                self.draw_device_config(frame, inner_area, device_index)
-            }
+            FocusedBlock::DeviceConfig {
+                device_index,
+                ref controls,
+            } => self.draw_device_config(frame, inner_area, device_index, controls),
         }
 
         if let Some(notification) = &self.notification {
@@ -209,8 +242,11 @@ impl App {
                     }
                 }
                 Action::Confirm if let Some(i) = self.devices_table_state.selected() => {
-                    if self.devices[i].is_some() {
-                        self.focused_block = FocusedBlock::DeviceConfig { device_index: i };
+                    if let Some(device) = &self.devices[i] {
+                        self.focused_block = FocusedBlock::DeviceConfig {
+                            device_index: i,
+                            controls: device.query_controls().unwrap(),
+                        };
                     } else {
                         self.notification = Some(Notification::new(
                             format!("Device /dev/video{} not found", i),
@@ -221,7 +257,7 @@ impl App {
                 Action::Cancel => self.devices_table_state.select(None),
                 _ => (),
             },
-            FocusedBlock::DeviceConfig { device_index } => match action {
+            FocusedBlock::DeviceConfig { .. } => match action {
                 Action::Cancel => self.focused_block = FocusedBlock::DevicesTable,
                 _ => (),
             },
