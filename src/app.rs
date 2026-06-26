@@ -18,7 +18,9 @@ use ratatui::{
 use v4l::{Device as V4lDevice, control::Value};
 
 use crate::{
+    action::Action,
     device::{Device, DeviceIndex, VecIndex},
+    focused_block::FocusedBlock,
     notification::{Notification, Severity},
 };
 
@@ -26,41 +28,21 @@ const MAX_DEVICE_INDEX: usize = 10;
 
 #[derive(Default)]
 pub struct App {
-    quit: bool,
-    devices: Vec<Device>,
-    devices_table_state: TableState,
-    ffplay_child: Option<Child>,
-    focused_block: FocusedBlock,
-    notification: Option<Notification>,
-}
-
-#[derive(Default)]
-enum FocusedBlock {
-    #[default]
-    DevicesTable,
-    DeviceConfig {
-        device_index: VecIndex,
-        selected_control_row: usize,
-    },
-}
-
-enum Action {
-    MoveUp,
-    MoveDown,
-    MoveLeft,
-    MoveRight,
-    Confirm,
-    Cancel,
+    pub quit: bool,
+    pub devices: Vec<Device>,
+    pub devices_table_state: TableState,
+    pub ffplay_child: Option<Child>,
+    pub focused_block: FocusedBlock,
+    pub notification: Option<Notification>,
 }
 
 impl App {
     pub fn new() -> io::Result<Self> {
-        let mut app = Self {
-            devices_table_state: TableState::new().with_selected(1),
-            ..Default::default()
-        };
+        let mut app = Self::default();
 
         app.refresh_devices();
+
+        app.devices_table_state.select_first();
 
         app.focused_block = FocusedBlock::DeviceConfig {
             device_index: VecIndex(0),
@@ -138,31 +120,31 @@ impl App {
             .layout(&Layout::horizontal([Constraint::Length(1), Constraint::Fill(1)]).spacing(1));
         frame.render_widget(device.name().to_line().centered(), device_name_area);
 
-        let integer_controls = device.descriptions().iter().filter_map(|description| {
-            let control = device.control(description.id).ok()?;
-            let Value::Integer(value) = control.value else {
-                return None;
-            };
-            Some((description, value))
+        let integer_controls = device.descriptions().iter().map(|description| {
+            let control = device.control(description.id).ok();
+            (description, control.map(|c| c.value))
         });
 
         // FIXME: this is a mess, and stupid to clone
         let row_constraints = (0..integer_controls.clone().count()).map(|_| Constraint::Length(1));
-        let horizontal = Layout::horizontal([
-            Constraint::Length(2),
-            Constraint::Length(30),
-            Constraint::Fill(1),
-        ])
-        .spacing(1);
         let vertical = Layout::vertical(row_constraints).spacing(1);
+
+        const HORIZONTAL_CONSTRAINTS: [Constraint; 4] = [
+            Constraint::Length(2),
+            Constraint::Length(26),
+            Constraint::Length(20),
+            Constraint::Fill(1),
+        ];
+        let horizontal = Layout::horizontal(HORIZONTAL_CONSTRAINTS).spacing(1);
 
         let cells = controls_area
             .layout_vec(&vertical)
             .into_iter()
             .flat_map(|row| row.layout_vec(&horizontal));
 
-        for ((i, (description, value)), mut cells_in_row) in
-            integer_controls.enumerate().zip(&cells.chunks(3))
+        for ((i, (description, maybe_value)), mut cells_in_row) in integer_controls
+            .enumerate()
+            .zip(&cells.chunks(HORIZONTAL_CONSTRAINTS.len()))
         {
             let selector_area = cells_in_row.next().unwrap();
             if selected_row == i {
@@ -170,13 +152,34 @@ impl App {
             }
 
             let control_name_area = cells_in_row.next().unwrap();
-            let gauge_area = cells_in_row.next().unwrap();
-
-            let ratio = (value - description.minimum) as f64
-                / (description.maximum - description.minimum) as f64;
-
             frame.render_widget(description.name.as_str(), control_name_area);
-            frame.render_widget(Gauge::default().ratio(ratio), gauge_area);
+
+            let Some(value) = maybe_value else {
+                continue;
+            };
+
+            let value_area = cells_in_row.next().unwrap();
+            let visualisation_area = cells_in_row.next().unwrap();
+
+            match value {
+                Value::Integer(value) => {
+                    // FIXME: alloc...
+                    let value_string = format!(
+                        "{} ({}..{})",
+                        value, description.minimum, description.maximum
+                    );
+                    frame.render_widget(value_string, value_area);
+
+                    let ratio = (value - description.minimum) as f64
+                        / (description.maximum - description.minimum) as f64;
+                    frame.render_widget(Gauge::default().ratio(ratio), visualisation_area);
+                }
+                Value::Boolean(value) => {
+                    let value_string = format!("{} (false..true)", value);
+                    frame.render_widget(value_string, value_area);
+                }
+                _ => (),
+            }
         }
     }
 
@@ -185,6 +188,7 @@ impl App {
 
         let block = Block::bordered()
             .title(concat!(" ", env!("CARGO_PKG_NAME"), " ").bold().dim())
+            .title_bottom(self.focused_block.help_text())
             .padding(Padding::proportional(1))
             .title_alignment(HorizontalAlignment::Center);
         frame.render_widget(&block, area);
@@ -228,86 +232,16 @@ impl App {
             KeyCode::Char('p') if let Some(i) = self.devices_table_state.selected() => {
                 self.start_preview(VecIndex(i))?
             }
-            KeyCode::Char('k') | KeyCode::Up => self.perform_action(Action::MoveUp),
-            KeyCode::Char('j') | KeyCode::Down => self.perform_action(Action::MoveDown),
-            KeyCode::Char('h') | KeyCode::Left => self.perform_action(Action::MoveLeft),
-            KeyCode::Char('l') | KeyCode::Right => self.perform_action(Action::MoveRight),
-            KeyCode::Char(' ') | KeyCode::Enter => self.perform_action(Action::Confirm),
-            KeyCode::Esc | KeyCode::Backspace => self.perform_action(Action::Cancel),
+            KeyCode::Char('k') | KeyCode::Up => self.perform_action(Action::MoveUp)?,
+            KeyCode::Char('j') | KeyCode::Down => self.perform_action(Action::MoveDown)?,
+            KeyCode::Char('h') | KeyCode::Left => self.perform_action(Action::MoveLeft)?,
+            KeyCode::Char('l') | KeyCode::Right => self.perform_action(Action::MoveRight)?,
+            KeyCode::Char(' ') | KeyCode::Enter => self.perform_action(Action::Confirm)?,
+            KeyCode::Esc | KeyCode::Backspace => self.perform_action(Action::Cancel)?,
             _ => (),
         }
 
         Ok(())
-    }
-
-    fn perform_action(&mut self, action: Action) {
-        if !matches!(action, Action::Cancel) && self.devices_table_state.selected().is_none() {
-            self.devices_table_state.select_first();
-            return;
-        }
-        match self.focused_block {
-            FocusedBlock::DevicesTable => match action {
-                Action::MoveUp
-                    if let Some(selected_index) = self.devices_table_state.selected() =>
-                {
-                    if selected_index > 0 {
-                        self.devices_table_state.select_previous();
-                    } else {
-                        self.devices_table_state.select_last();
-                    }
-                }
-                Action::MoveDown
-                    if let Some(selected_index) = self.devices_table_state.selected() =>
-                {
-                    if selected_index < self.devices.len() - 1 {
-                        self.devices_table_state.select_next();
-                    } else {
-                        self.devices_table_state.select_first();
-                    }
-                }
-                Action::Confirm if let Some(i) = self.devices_table_state.selected() => {
-                    self.focused_block = FocusedBlock::DeviceConfig {
-                        device_index: VecIndex(i),
-                        selected_control_row: 0,
-                    };
-                }
-                Action::Cancel => self.devices_table_state.select(None),
-                _ => (),
-            },
-            FocusedBlock::DeviceConfig {
-                device_index,
-                ref mut selected_control_row,
-            } => {
-                let device = &self.devices[device_index.0];
-                match action {
-                    Action::Cancel => self.focused_block = FocusedBlock::DevicesTable,
-                    Action::MoveDown => {
-                        if *selected_control_row < device.num_controls() - 1 {
-                            *selected_control_row += 1;
-                        } else {
-                            *selected_control_row = 0;
-                        }
-                    }
-                    Action::MoveUp => {
-                        if *selected_control_row > 0 {
-                            *selected_control_row -= 1;
-                        } else {
-                            *selected_control_row = device.num_controls() - 1;
-                        }
-                    }
-                    Action::MoveRight => device
-                        .increment_control(VecIndex(*selected_control_row))
-                        .unwrap(),
-                    Action::MoveLeft => {
-                        device
-                            .decrement_control(VecIndex(*selected_control_row))
-                            .unwrap();
-                    }
-
-                    _ => (),
-                }
-            }
-        }
     }
 
     fn start_preview(&mut self, VecIndex(i): VecIndex) -> io::Result<()> {

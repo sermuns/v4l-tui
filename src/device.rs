@@ -23,6 +23,11 @@ pub struct Device {
     v4l_device: V4lDevice,
 }
 
+pub enum Modification {
+    Increment,
+    Decrement,
+}
+
 impl Device {
     pub fn new(index: DeviceIndex, v4l_device: V4lDevice) -> Self {
         let index_as_string = index.0.to_string();
@@ -56,23 +61,22 @@ impl Device {
         self.v4l_device.control(id)
     }
 
-    pub fn increment_control(&self, VecIndex(i): VecIndex) -> io::Result<()> {
+    pub fn modify_control(
+        &self,
+        VecIndex(i): VecIndex,
+        modification: Modification,
+    ) -> io::Result<()> {
         let description = &self.control_descriptions[i];
         let mut control = self.control(description.id)?;
-        let Value::Integer(value) = &mut control.value else {
-            panic!();
+        match (&mut control.value, modification) {
+            (Value::Integer(value), Modification::Increment) if *value < description.maximum => {
+                *value += description.step as i64;
+            }
+            (Value::Integer(value), Modification::Decrement) if *value > description.minimum => {
+                *value -= description.step as i64;
+            }
+            _ => return Ok(()),
         };
-        *value += description.step as i64;
-        self.v4l_device.set_control(control)
-    }
-
-    pub fn decrement_control(&self, VecIndex(i): VecIndex) -> io::Result<()> {
-        let description = &self.control_descriptions[i];
-        let mut control = self.control(description.id)?;
-        let Value::Integer(value) = &mut control.value else {
-            panic!();
-        };
-        *value -= description.step as i64;
         self.v4l_device.set_control(control)
     }
 

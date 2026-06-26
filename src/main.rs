@@ -3,6 +3,8 @@ use std::io;
 mod app;
 mod device;
 mod notification;
+mod action;
+mod focused_block;
 
 use crate::app::App;
 
