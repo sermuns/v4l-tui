@@ -19,6 +19,9 @@ ratatui.workspace = true
 unicode-consts = "0.2"
 v4l = { version = "0.14", default-features = false, features = ["libv4l"] }
 
+[patch.crates-io]
+v4l = { git = "https://github.com/sermuns/libv4l-rs" }
+
 [lints.clippy]
 pedantic = { level = "warn", priority = -1 }
 uninlined_format_args = "allow"
