@@ -107,7 +107,7 @@ impl Device {
                 *value = !*value;
             }
             _ => return Ok(()),
-        };
+        }
 
         self.v4l_device.set_control(control)?;
 

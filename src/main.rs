@@ -11,7 +11,7 @@ fn main() -> color_eyre::Result<()> {
         .display_env_section(false)
         .install()?;
 
-    let mut app = App::new()?;
+    let mut app = App::new();
 
     ratatui::run(|terminal| app.run(terminal))?;
 

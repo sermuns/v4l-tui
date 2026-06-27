@@ -36,7 +36,7 @@ pub struct App {
 }
 
 impl App {
-    pub fn new() -> io::Result<Self> {
+    pub fn new() -> Self {
         let mut app = Self::default();
 
         app.refresh_devices();
@@ -48,7 +48,7 @@ impl App {
             selected_control_row: 0,
         };
 
-        Ok(app)
+        app
     }
 
     pub fn run(&mut self, terminal: &mut DefaultTerminal) -> color_eyre::Result<()> {
@@ -57,7 +57,11 @@ impl App {
 
             self.handle_keypresses()?;
             self.handle_ffplay_child()?;
-            if self.notification.as_ref().is_some_and(|n| n.is_dead()) {
+            if self
+                .notification
+                .as_ref()
+                .is_some_and(Notification::is_dead)
+            {
                 self.notification = None;
             }
         }
@@ -256,20 +260,20 @@ impl App {
 
         match key_event.code {
             KeyCode::Char('c') if key_event.modifiers.contains(KeyModifiers::CONTROL) => {
-                self.quit = true
+                self.quit = true;
             }
             KeyCode::Char('q') => self.quit = true,
             KeyCode::Char('r') => self.refresh_devices(),
             KeyCode::Char('p') if let Some(i) = self.devices_table_state.selected() => {
-                self.start_preview(VecIndex(i))?
+                self.start_preview(VecIndex(i))?;
             }
             KeyCode::Char('k') | KeyCode::Up => self.perform_action(Action::MoveUp)?,
             KeyCode::Char('j') | KeyCode::Down => self.perform_action(Action::MoveDown)?,
-            KeyCode::Char('-') | KeyCode::Char('h') | KeyCode::Left => {
-                self.perform_action(Action::MoveLeft)?
+            KeyCode::Char('-' | 'h') | KeyCode::Left => {
+                self.perform_action(Action::MoveLeft)?;
             }
-            KeyCode::Char('+') | KeyCode::Char('l') | KeyCode::Right => {
-                self.perform_action(Action::MoveRight)?
+            KeyCode::Char('+' | 'l') | KeyCode::Right => {
+                self.perform_action(Action::MoveRight)?;
             }
             KeyCode::Char(' ') | KeyCode::Enter => self.perform_action(Action::Confirm)?,
             KeyCode::Esc | KeyCode::Backspace => self.perform_action(Action::Cancel)?,
