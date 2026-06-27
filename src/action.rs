@@ -55,7 +55,7 @@ impl App {
                 match action {
                     Action::Cancel => self.focused_block = FocusedBlock::DevicesTable,
                     Action::MoveDown => {
-                        if *selected_control_row < device.num_controls() - 1 {
+                        if *selected_control_row < device.num_controls().saturating_sub(1) {
                             *selected_control_row += 1;
                         } else {
                             *selected_control_row = 0;
@@ -65,7 +65,7 @@ impl App {
                         if *selected_control_row > 0 {
                             *selected_control_row -= 1;
                         } else {
-                            *selected_control_row = device.num_controls() - 1;
+                            *selected_control_row = device.num_controls().saturating_sub(1);
                         }
                     }
                     Action::MoveRight => device
