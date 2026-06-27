@@ -1916,15 +1916,7 @@ source = "git+https://github.com/sermuns/libv4l-rs#ca9d41a014126d7dcb8232ce11964
 dependencies = [
  "bitflags 2.13.0",
  "libc",
- "v4l-sys",
-]
-
-[[package]]
-name = "v4l-sys"
-version = "0.3.0"
-source = "git+https://github.com/sermuns/libv4l-rs#ca9d41a014126d7dcb8232ce11964eadf918e218"
-dependencies = [
- "bindgen",
+ "v4l2-sys-mit",
 ]
 
 [[package]]
@@ -1937,6 +1929,14 @@ dependencies = [
  "ratatui",
  "unicode-consts",
  "v4l",
+]
+
+[[package]]
+name = "v4l2-sys-mit"
+version = "0.3.0"
+source = "git+https://github.com/sermuns/libv4l-rs#ca9d41a014126d7dcb8232ce11964eadf918e218"
+dependencies = [
+ "bindgen",
 ]
 
 [[package]]

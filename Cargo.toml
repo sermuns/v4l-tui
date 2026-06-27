@@ -17,7 +17,7 @@ const_format = "0.2"
 itertools = "0.15"
 ratatui.workspace = true
 unicode-consts = "0.2"
-v4l = { version = "0.14", default-features = false, features = ["libv4l"] }
+v4l = "0.14"
 
 [patch.crates-io]
 v4l = { git = "https://github.com/sermuns/libv4l-rs" }
