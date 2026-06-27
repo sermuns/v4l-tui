@@ -8,11 +8,14 @@ license = "GPL-3.0-only"
 [workspace]
 members = ["xtask"]
 
+[workspace.dependencies]
+ratatui = "0.30"
+
 [dependencies]
 color-eyre = "0.6"
 const_format = "0.2"
 itertools = "0.15"
-ratatui = "0.30"
+ratatui.workspace = true
 unicode-consts = "0.2"
 v4l = "0.14"
 

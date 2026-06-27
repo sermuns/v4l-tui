@@ -4,3 +4,6 @@ edition = "2024"
 publish = false
 
 [dependencies]
+ratasvg.git = "https://github.com/sermuns/ratasvg"
+ratatui.workspace = true
+tui-big-text = "0.8"
