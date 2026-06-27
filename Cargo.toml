@@ -4,6 +4,8 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+const_format = "0.2"
 itertools = "0.15"
 ratatui = "0.30"
+unicode-consts = "0.2"
 v4l = { version = "0.14", features = ["v4l2"] }

@@ -1,6 +1,7 @@
-use ratatui::prelude::*;
-
 use crate::device::VecIndex;
+
+use const_format::formatcp;
+use unicode_consts::arrows::{DOWNWARDS_ARROW, LEFTWARDS_ARROW, RIGHTWARDS_ARROW, UPWARDS_ARROW};
 
 #[derive(Default)]
 pub enum FocusedBlock {
@@ -12,19 +13,17 @@ pub enum FocusedBlock {
     },
 }
 
-macro_rules! more_help_str {
-    ($x:literal) => {
-        concat!(" up: k/\u{2191}, down: j/\u{2193}, ", $x, " ")
-    };
-}
+const UP_DOWN_HELP: &str = formatcp!("up: k/{UPWARDS_ARROW}, down: j/{DOWNWARDS_ARROW}");
 
 impl FocusedBlock {
     // TODO:
     pub fn help_text(&self) -> &'static str {
         match self {
-            Self::DevicesTable => more_help_str!("confirm: enter/space, quit: q"),
+            Self::DevicesTable => formatcp!(" {UP_DOWN_HELP}, confirm: enter/space, quit: q"),
             Self::DeviceConfig { .. } => {
-                more_help_str!("dec: h/\u{2190}, inc: l/\u{2192}, toggle: enter/space, back: esc")
+                formatcp!(
+                    " {UP_DOWN_HELP}, dec: h/{LEFTWARDS_ARROW}, inc: l/{RIGHTWARDS_ARROW}, toggle: enter/space, back: esc "
+                )
             }
         }
     }
