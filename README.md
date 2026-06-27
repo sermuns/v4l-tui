@@ -8,7 +8,7 @@ _TUI app for configuring cameras on Linux_
 
 </div>
 
-![demo video](media/demo.avif)
+[![demo video](media/demo.avif)](media/demo.avif?raw=true)
 
 ## Installation
 
