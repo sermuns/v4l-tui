@@ -9,7 +9,7 @@ const_format = "0.2"
 itertools = "0.15"
 ratatui = "0.30"
 unicode-consts = "0.2"
-v4l = { version = "0.14", features = ["v4l2"] }
+v4l = "0.14"
 
 [lints.clippy]
 pedantic = { level = "warn", priority = -1 }
