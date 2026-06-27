@@ -1,4 +1,3 @@
-use std::io;
 
 use crate::{
     app::App,
@@ -77,8 +76,6 @@ impl App {
                         .modify_control(VecIndex(*selected_control_row), Modification::Decrement)?,
                     Action::Confirm => device
                         .modify_control(VecIndex(*selected_control_row), Modification::Toggle)?,
-
-                    _ => (),
                 }
             }
         }

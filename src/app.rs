@@ -1,7 +1,6 @@
 use std::{
     io,
     process::{Child, Command, Stdio},
-    time::Duration,
 };
 
 use itertools::Itertools;
