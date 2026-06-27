@@ -230,7 +230,13 @@ impl App {
         let inner_area = block.inner(area);
 
         match self.focused_block {
-            FocusedBlock::DevicesTable => self.draw_devices_table(frame, inner_area),
+            FocusedBlock::DevicesTable => {
+                if self.devices.is_empty() {
+                    frame.render_widget("No camera devices detected.", inner_area);
+                } else {
+                    self.draw_devices_table(frame, inner_area);
+                }
+            }
             FocusedBlock::DeviceConfig {
                 device_index,
                 selected_control_row,
