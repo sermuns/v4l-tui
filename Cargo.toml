@@ -19,3 +19,11 @@ uninlined_format_args = "allow"
 cast_possible_truncation = "allow"
 cast_precision_loss = "allow"
 needless_pass_by_value = "allow"
+
+[profile.release]
+codegen-units = 1
+debug = false
+lto = true
+opt-level = 3
+panic = "abort"
+strip = false
