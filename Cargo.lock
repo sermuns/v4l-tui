@@ -161,18 +161,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c8efb64bd706a16a1bdde310ae86b351e4d21550d98d056f22f8a7f7a2183fec"
 
 [[package]]
-name = "cameractrls-rs"
-version = "0.1.0"
-dependencies = [
- "color-eyre",
- "const_format",
- "itertools 0.15.0",
- "ratatui",
- "unicode-consts",
- "v4l",
-]
-
-[[package]]
 name = "castaway"
 version = "0.2.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1827,6 +1815,18 @@ dependencies = [
  "bitflags 1.3.2",
  "libc",
  "v4l2-sys-mit",
+]
+
+[[package]]
+name = "v4l-tui"
+version = "0.1.0"
+dependencies = [
+ "color-eyre",
+ "const_format",
+ "itertools 0.15.0",
+ "ratatui",
+ "unicode-consts",
+ "v4l",
 ]
 
 [[package]]

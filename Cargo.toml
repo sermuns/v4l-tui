@@ -1,5 +1,5 @@
 [package]
-name = "cameractrls-rs"
+name = "v4l-tui"
 description = "TUI alternative to v4l-ctl or cameractrls"
 version = "0.1.0"
 edition = "2024"
