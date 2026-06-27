@@ -137,6 +137,7 @@ impl App {
         let row_constraints = (0..device.num_controls()).map(|_| Constraint::Length(1));
         let vertical = Layout::vertical(row_constraints).spacing(1);
 
+        #[expect(clippy::items_after_statements)]
         const HORIZONTAL_CONSTRAINTS: [Constraint; 4] = [
             Constraint::Length(2),
             Constraint::Length(26),

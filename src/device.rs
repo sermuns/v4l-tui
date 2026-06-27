@@ -20,6 +20,7 @@ pub struct Device {
 
     possibly_locked_descriptions: Vec<PossiblyLockedDescription>,
 
+    #[expect(clippy::struct_field_names)]
     v4l_device: V4lDevice,
 }
 
@@ -98,10 +99,10 @@ impl Device {
 
         match (&mut control.value, modification) {
             (Value::Integer(value), Modification::Increment) if *value < description.maximum => {
-                *value += description.step as i64;
+                *value += description.step.cast_signed();
             }
             (Value::Integer(value), Modification::Decrement) if *value > description.minimum => {
-                *value -= description.step as i64;
+                *value -= description.step.cast_signed();
             }
             (Value::Boolean(value), _) => {
                 *value = !*value;
