@@ -1,0 +1,31 @@
+[[repos]]
+repo = "builtin"
+
+[[repos.hooks]]
+id = "check-added-large-files"
+
+[[repos.hooks]]
+id = "check-symlinks"
+
+
+[[repos]]
+repo = "local"
+
+[[repos.hooks]]
+id = "cargo-fmt"
+name = "format code"
+language = "system"
+entry = "cargo fmt"
+pass_filenames = false
+
+[[repos.hooks]]
+id = "cargo-clippy"
+name = "lint code"
+language = "system"
+entry = "cargo clippy -- -D warnings"
+pass_filenames = false
+
+[[repos]]
+repo = "https://github.com/crate-ci/typos"
+rev = "v1.47.2"
+hooks = [{ id = "typos" }]
