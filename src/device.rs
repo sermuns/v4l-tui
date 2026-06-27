@@ -18,7 +18,7 @@ pub struct Device {
 
     capabilities: Capabilities,
 
-    control_descriptions: Vec<Description>,
+    possibly_locked_descriptions: Vec<PossiblyLockedDescription>,
 
     v4l_device: V4lDevice,
 }
@@ -29,15 +29,33 @@ pub enum Modification {
     Toggle,
 }
 
+pub struct PossiblyLockedDescription {
+    pub description: Description,
+    pub is_locked: bool,
+}
+
 impl Device {
     pub fn new(index: DeviceIndex, v4l_device: V4lDevice) -> Self {
         let index_as_string = index.0.to_string();
+
+        let descriptions = v4l_device.query_controls().unwrap();
+
+        let possibly_locked_descriptions = descriptions
+            .into_iter()
+            .map(|description| {
+                let is_locked = v4l_device.control(description.id).is_err();
+                PossiblyLockedDescription {
+                    description,
+                    is_locked,
+                }
+            })
+            .collect();
 
         Self {
             // index,
             index_as_string,
             capabilities: v4l_device.query_caps().unwrap(),
-            control_descriptions: v4l_device.query_controls().unwrap(),
+            possibly_locked_descriptions,
             v4l_device,
         }
     }
@@ -54,8 +72,8 @@ impl Device {
         &self.capabilities.bus
     }
 
-    pub fn descriptions(&self) -> &[Description] {
-        &self.control_descriptions
+    pub fn possibly_locked_descriptions(&self) -> &[PossiblyLockedDescription] {
+        &self.possibly_locked_descriptions
     }
 
     pub fn control(&self, id: u32) -> io::Result<Control> {
@@ -66,9 +84,18 @@ impl Device {
         &self,
         VecIndex(i): VecIndex,
         modification: Modification,
-    ) -> io::Result<()> {
-        let description = &self.control_descriptions[i];
+    ) -> color_eyre::Result<()> {
+        let PossiblyLockedDescription {
+            description,
+            is_locked,
+        } = &self.possibly_locked_descriptions[i];
+
+        if *is_locked {
+            return Ok(());
+        }
+
         let mut control = self.control(description.id)?;
+
         match (&mut control.value, modification) {
             (Value::Integer(value), Modification::Increment) if *value < description.maximum => {
                 *value += description.step as i64;
@@ -81,10 +108,13 @@ impl Device {
             }
             _ => return Ok(()),
         };
-        self.v4l_device.set_control(control)
+
+        self.v4l_device.set_control(control)?;
+
+        Ok(())
     }
 
     pub fn num_controls(&self) -> usize {
-        self.control_descriptions.len()
+        self.possibly_locked_descriptions.len()
     }
 }

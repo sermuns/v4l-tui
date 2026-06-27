@@ -22,7 +22,7 @@ impl FocusedBlock {
             Self::DevicesTable => formatcp!(" {UP_DOWN_HELP}, confirm: enter/space, quit: q"),
             Self::DeviceConfig { .. } => {
                 formatcp!(
-                    " {UP_DOWN_HELP}, dec: h/{LEFTWARDS_ARROW}, inc: l/{RIGHTWARDS_ARROW}, toggle: enter/space, back: esc "
+                    " {UP_DOWN_HELP}, dec: -/h/{LEFTWARDS_ARROW}, inc: +/l/{RIGHTWARDS_ARROW}, toggle: enter/space, back: esc "
                 )
             }
         }

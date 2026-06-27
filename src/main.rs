@@ -1,5 +1,3 @@
-use std::io;
-
 mod action;
 mod app;
 mod device;
@@ -8,7 +6,11 @@ mod notification;
 
 use crate::app::App;
 
-fn main() -> io::Result<()> {
+fn main() -> color_eyre::Result<()> {
+    color_eyre::config::HookBuilder::default()
+        .display_env_section(false)
+        .install()?;
+
     let mut app = App::new()?;
 
     ratatui::run(|terminal| app.run(terminal))?;
