@@ -10,3 +10,9 @@ itertools = "0.15"
 ratatui = "0.30"
 unicode-consts = "0.2"
 v4l = { version = "0.14", features = ["v4l2"] }
+
+[lints.clippy]
+pedantic = { level = "warn", priority = -1 }
+uninlined_format_args = "allow"
+cast_possible_truncation = "allow"
+cast_precision_loss = "allow"
