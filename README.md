@@ -30,6 +30,7 @@ v4l-tui
 
 - [ ] handle errors more gracefully, don't just `panic`
 - [ ] support all values types for camera controls. currently only `Integer` and `Boolean` values are supported.
+- [ ] document+support the "preview" feature better
 
 ## Disclaimer
 
