@@ -8,7 +8,7 @@ _TUI app for configuring cameras on Linux_
 
 </div>
 
-[![demo video](media/demo.avif)](media/demo.avif?raw=true)
+![demo video](https://raw.githubusercontent.com/sermuns/v4l-tui/main/media/demo.avif)
 
 ## Installation
 
