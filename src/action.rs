@@ -1,4 +1,3 @@
-
 use crate::{
     app::App,
     device::{Modification, VecIndex},
