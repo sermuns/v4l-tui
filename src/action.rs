@@ -68,13 +68,16 @@ impl App {
                             *selected_control_row = device.num_controls().saturating_sub(1);
                         }
                     }
-                    Action::MoveRight => device
-                        .modify_control(VecIndex(*selected_control_row), Modification::Increment)?,
+                    Action::MoveRight => {
+                        device.modify_control(*selected_control_row, Modification::Increment)?;
+                    }
 
-                    Action::MoveLeft => device
-                        .modify_control(VecIndex(*selected_control_row), Modification::Decrement)?,
-                    Action::Confirm => device
-                        .modify_control(VecIndex(*selected_control_row), Modification::Toggle)?,
+                    Action::MoveLeft => {
+                        device.modify_control(*selected_control_row, Modification::Decrement)?;
+                    }
+                    Action::Confirm => {
+                        device.modify_control(*selected_control_row, Modification::Toggle)?;
+                    }
                 }
             }
         }

@@ -81,11 +81,7 @@ impl Device {
         self.v4l_device.control(desc)
     }
 
-    pub fn modify_control(
-        &self,
-        VecIndex(i): VecIndex,
-        modification: Modification,
-    ) -> color_eyre::Result<()> {
+    pub fn modify_control(&self, i: usize, modification: Modification) -> color_eyre::Result<()> {
         let Some(PossiblyLockedDescription {
             description,
             is_locked,
