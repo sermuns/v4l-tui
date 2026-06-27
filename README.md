@@ -12,7 +12,7 @@ _TUI app for configuring cameras on Linux_
 
 ## Installation
 
-Not yet published on https://crates.io yet.
+Not yet published on https://crates.io.
 
 For now, install via:
 
