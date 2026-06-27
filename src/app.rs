@@ -127,7 +127,7 @@ impl App {
                 .iter()
                 .map(|possibly_locked_description| {
                     let control = device
-                        .control(possibly_locked_description.description.id)
+                        .control(&possibly_locked_description.description)
                         .ok();
                     (possibly_locked_description, control.map(|c| c.value))
                 });
@@ -311,11 +311,10 @@ impl App {
 
             // remove "Metadata Capture" devices. we only want "Video Capture" devices
             // https://askubuntu.com/a/1229301
-            if v4l_device
-                .query_caps()
-                .unwrap()
-                .capabilities
-                .contains(v4l::capability::Flags::META_CAPTURE)
+            if let Ok(caps) = v4l_device.query_caps()
+                && caps
+                    .capabilities
+                    .contains(v4l::capability::Flags::META_CAPTURE)
             {
                 continue;
             }

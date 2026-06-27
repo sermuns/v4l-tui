@@ -39,12 +39,12 @@ impl Device {
     pub fn new(index: DeviceIndex, v4l_device: V4lDevice) -> Self {
         let index_as_string = index.0.to_string();
 
-        let descriptions = v4l_device.query_controls().unwrap();
+        let descriptions = v4l_device.query_controls().unwrap_or_default();
 
         let possibly_locked_descriptions = descriptions
             .into_iter()
             .map(|description| {
-                let is_locked = v4l_device.control(description.id).is_err();
+                let is_locked = v4l_device.control(&description).is_err();
                 PossiblyLockedDescription {
                     description,
                     is_locked,
@@ -77,8 +77,8 @@ impl Device {
         &self.possibly_locked_descriptions
     }
 
-    pub fn control(&self, id: u32) -> io::Result<Control> {
-        self.v4l_device.control(id)
+    pub fn control(&self, desc: &Description) -> io::Result<Control> {
+        self.v4l_device.control(desc)
     }
 
     pub fn modify_control(
@@ -86,16 +86,19 @@ impl Device {
         VecIndex(i): VecIndex,
         modification: Modification,
     ) -> color_eyre::Result<()> {
-        let PossiblyLockedDescription {
+        let Some(PossiblyLockedDescription {
             description,
             is_locked,
-        } = &self.possibly_locked_descriptions[i];
+        }) = &self.possibly_locked_descriptions.get(i)
+        else {
+            return Ok(());
+        };
 
         if *is_locked {
             return Ok(());
         }
 
-        let mut control = self.control(description.id)?;
+        let mut control = self.control(description)?;
 
         match (&mut control.value, modification) {
             (Value::Integer(value), Modification::Increment) if *value < description.maximum => {
