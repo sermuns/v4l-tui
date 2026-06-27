@@ -41,12 +41,12 @@ impl App {
 
         app.refresh_devices();
 
-        app.devices_table_state.select_first();
-
-        app.focused_block = FocusedBlock::DeviceConfig {
-            device_index: VecIndex(0),
-            selected_control_row: 0,
-        };
+        // app.devices_table_state.select_first();
+        //
+        // app.focused_block = FocusedBlock::DeviceConfig {
+        //     device_index: VecIndex(0),
+        //     selected_control_row: 0,
+        // };
 
         app
     }
