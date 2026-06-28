@@ -1,0 +1,76 @@
+name: Release
+on:
+  push:
+    tags:
+      - "*"
+
+jobs:
+  publish-github:
+    name: publish for ${{ matrix.build.OS }} (${{ matrix.build.TARGET }})
+    runs-on: ${{ matrix.build.OS }}
+    permissions:
+      contents: write # for publishing release
+    strategy:
+      fail-fast: false
+      matrix:
+        build:
+          - { OS: ubuntu-latest, TARGET: x86_64-unknown-linux-musl }
+          # - { OS: ubuntu-latest, TARGET: aarch64-unknown-linux-gnu }
+          # - { OS: ubuntu-latest, TARGET: aarch64-unknown-linux-musl }
+          # - { OS: ubuntu-latest, TARGET: arm-unknown-linux-gnueabi }
+          # - { OS: ubuntu-latest, TARGET: arm-unknown-linux-gnueabihf }
+          # - { OS: ubuntu-latest, TARGET: armv5te-unknown-linux-gnueabi }
+          # - { OS: ubuntu-latest, TARGET: armv7-unknown-linux-gnueabihf }
+          # - { OS: ubuntu-latest, TARGET: i686-unknown-linux-gnu }
+          # - { OS: ubuntu-latest, TARGET: i686-unknown-linux-musl }
+          # - { OS: ubuntu-latest, TARGET: powerpc64le-unknown-linux-gnu }
+          # - { OS: ubuntu-latest, TARGET: riscv64gc-unknown-linux-gnu }
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          lfs: true
+
+      - shell: bash
+        run: |
+          echo "RELEASE_VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_ENV
+          echo "CLI_NAME=$(basename $PWD)" >> $GITHUB_ENV
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.build.TARGET }}
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: ${{ matrix.build.TARGET }}
+
+      - run: cargo build --release --locked --target ${{ matrix.build.TARGET }}
+
+      - shell: bash
+        run: |
+          mkdir -p ${{env.CLI_NAME}}-${{env.RELEASE_VERSION}}
+          cp target/${{ matrix.build.TARGET }}/release/${{env.CLI_NAME}} LICENSE README.md CHANGELOG.md ${{env.CLI_NAME}}-${{env.RELEASE_VERSION}}/
+
+      - shell: bash
+        run: |
+          tar -czvf ${{env.CLI_NAME}}-${{ matrix.build.TARGET }}.tar.gz ${{env.CLI_NAME}}-${{ env.RELEASE_VERSION }}/
+          shasum -a 512 ${{env.CLI_NAME}}-${{ matrix.build.TARGET }}.tar.gz > ${{env.CLI_NAME}}-${{ matrix.build.TARGET }}.tar.gz.sha512
+
+      - shell: bash
+        id: release-notes
+        run: |
+          echo "RELEASE_BODY<<EOF" >> $GITHUB_OUTPUT
+          sed -n '/^## \[${{ env.RELEASE_VERSION }}\].*$/,/^## /p' CHANGELOG.md | sed '$d'
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Upload the binary releases
+        uses: svenstaro/upload-release-action@v2
+        with:
+          file: "*-${{ matrix.build.TARGET }}*"
+          file_glob: true
+          overwrite: true
+          tag: ${{ github.ref }}
+          release_name: v${{ env.RELEASE_VERSION }}
+          body: |
+            ${{ steps.release-notes.outputs.RELEASE_BODY }}
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
