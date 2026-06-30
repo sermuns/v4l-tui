@@ -10,7 +10,7 @@ publish = false
 members = ["xtask"]
 
 [workspace.dependencies]
-ratatui = "0.30"
+ratatui = { version = "0.30", default-features = false, features = ["crossterm", "layout-cache"] }
 
 [dependencies]
 color-eyre = "0.6"
