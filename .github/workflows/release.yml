@@ -28,13 +28,15 @@ jobs:
 
     steps:
       - uses: actions/checkout@v7
-        with:
-          lfs: true
 
       - shell: bash
         run: |
           echo "RELEASE_VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_ENV
           echo "CLI_NAME=$(basename $PWD)" >> $GITHUB_ENV
+
+      - shell: bash
+        run: |
+          echo "ARTIFACT_NAME=${{env.CLI_NAME}}-${{env.RELEASE_VERSION}}-${{matrix.build.TARGET}}" >> $GITHUB_ENV
 
       - uses: dtolnay/rust-toolchain@stable
         with:
@@ -48,29 +50,14 @@ jobs:
 
       - shell: bash
         run: |
-          mkdir -p ${{env.CLI_NAME}}-${{env.RELEASE_VERSION}}
-          cp target/${{ matrix.build.TARGET }}/release/${{env.CLI_NAME}} LICENSE README.md CHANGELOG.md ${{env.CLI_NAME}}-${{env.RELEASE_VERSION}}/
+          cp target/${{ matrix.build.TARGET }}/release/${{env.CLI_NAME}} ${{env.ARTIFACT_NAME}}
+          shasum -a 512 ${{env.ARTIFACT_NAME}} > ${{env.ARTIFACT_NAME}}.sha512
 
-      - shell: bash
-        run: |
-          tar -czvf ${{env.CLI_NAME}}-${{ matrix.build.TARGET }}.tar.gz ${{env.CLI_NAME}}-${{ env.RELEASE_VERSION }}/
-          shasum -a 512 ${{env.CLI_NAME}}-${{ matrix.build.TARGET }}.tar.gz > ${{env.CLI_NAME}}-${{ matrix.build.TARGET }}.tar.gz.sha512
-
-      - shell: bash
-        id: release-notes
-        run: |
-          echo "RELEASE_BODY<<EOF" >> $GITHUB_OUTPUT
-          sed -n '/^## \[${{ env.RELEASE_VERSION }}\].*$/,/^## /p' CHANGELOG.md | sed '$d'
-          echo "EOF" >> $GITHUB_OUTPUT
-
-      - name: Upload the binary releases
-        uses: svenstaro/upload-release-action@v2
+      - uses: svenstaro/upload-release-action@v2
         with:
-          file: "*-${{ matrix.build.TARGET }}*"
+          file: "${{env.ARTIFACT_NAME}}*"
           file_glob: true
           overwrite: true
           tag: ${{ github.ref }}
           release_name: v${{ env.RELEASE_VERSION }}
-          body: |
-            ${{ steps.release-notes.outputs.RELEASE_BODY }}
           repo_token: ${{ secrets.GITHUB_TOKEN }}
