@@ -214,13 +214,23 @@ impl App {
     }
 
     fn draw_preview_status(&self, frame: &mut Frame, area: Rect) {
-        let line = if let Some(child) = &self.ffplay_child {
-            Line::from_iter(["Currently previewing! Press 'p' again to close it."])
+        let (line, foreground_color) = if self.ffplay_child.is_some() {
+            (
+                Line::from_iter(["Currently previewing! Press 'p' again to stop."]),
+                Color::Red,
+            )
         } else {
-            Line::from_iter(["Press 'p' to start preview"])
-        }
-        .centered();
-        let paragraph = Paragraph::new(line).block(Block::new().borders(Borders::TOP));
+            (
+                Line::from_iter(["Press 'p' to start preview."]),
+                Color::Green,
+            )
+        };
+
+        let paragraph = Paragraph::new(line)
+            .centered()
+            .block(Block::new().borders(Borders::TOP))
+            .fg(foreground_color);
+
         frame.render_widget(paragraph, area);
     }
 
