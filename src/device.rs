@@ -1,5 +1,6 @@
 use std::io;
 
+use anyhow::Context;
 use v4l::{
     Capabilities, Control, Device as V4lDevice,
     control::{Description, Value},
@@ -81,7 +82,7 @@ impl Device {
         self.v4l_device.control(desc)
     }
 
-    pub fn modify_control(&self, i: usize, modification: Modification) -> color_eyre::Result<()> {
+    pub fn modify_control(&self, i: usize, modification: Modification) -> anyhow::Result<()> {
         let Some(PossiblyLockedDescription {
             description,
             is_locked,
@@ -109,7 +110,13 @@ impl Device {
             _ => return Ok(()),
         }
 
-        self.v4l_device.set_control(control)?;
+        self.v4l_device.set_control(control).with_context(|| {
+            format!(
+                "Unable to modify '{}' on '{}'",
+                description.name,
+                self.name()
+            )
+        })?;
 
         Ok(())
     }

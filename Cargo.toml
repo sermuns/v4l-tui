@@ -13,7 +13,7 @@ members = ["xtask"]
 ratatui = { version = "0.30", default-features = false, features = ["crossterm", "layout-cache"] }
 
 [dependencies]
-color-eyre = "0.6"
+anyhow = "1"
 const_format = "0.2"
 itertools = "0.15"
 ratatui.workspace = true

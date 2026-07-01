@@ -2,7 +2,7 @@ use std::time::{Duration, Instant};
 
 use ratatui::{
     prelude::*,
-    widgets::{Block, BorderType, Paragraph},
+    widgets::{Block, BorderType, Paragraph, Wrap},
 };
 
 pub enum Severity {
@@ -41,6 +41,7 @@ impl Widget for &Notification {
             Severity::Error => Style::new().red(),
         };
         Paragraph::new(self.message.as_str())
+            .wrap(Wrap { trim: true })
             .block(
                 Block::bordered()
                     .border_style(border_style)

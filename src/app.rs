@@ -13,7 +13,7 @@ use ratatui::{
     },
     prelude::*,
     style::Styled,
-    widgets::{Block, Borders, Gauge, Padding, Paragraph, Row, Table, TableState},
+    widgets::{Block, Borders, Clear, Gauge, Padding, Paragraph, Row, Table, TableState},
 };
 use v4l::{Device as V4lDevice, control::Value};
 
@@ -21,7 +21,7 @@ use crate::{
     action::Action,
     device::{Device, DeviceIndex, PossiblyLockedDescription, VecIndex},
     focused_block::FocusedBlock,
-    notification::Notification,
+    notification::{Notification, Severity},
 };
 
 const MAX_DEVICE_INDEX: usize = 10;
@@ -50,11 +50,15 @@ impl App {
         app
     }
 
-    pub fn run(&mut self, terminal: &mut DefaultTerminal) -> color_eyre::Result<()> {
+    pub fn run(&mut self, terminal: &mut DefaultTerminal) -> anyhow::Result<()> {
         while !self.quit {
             terminal.draw(|frame| self.draw(frame))?;
 
-            self.handle_keypresses()?;
+            // self.handle_keypresses()?;
+            if let Err(e) = self.handle_keypresses() {
+                self.notification = Some(Notification::new(format!("{:?}", e), Severity::Error));
+            }
+
             self.handle_ffplay_child()?;
             if self
                 .notification
@@ -269,12 +273,13 @@ impl App {
         self.draw_preview_status(frame, preview_status_area);
 
         if let Some(notification) = &self.notification {
-            let notification_area = area.centered(Constraint::Length(25), Constraint::Length(10));
+            let notification_area = area.centered(Constraint::Fill(1), Constraint::Max(20));
+            frame.render_widget(Clear, notification_area);
             frame.render_widget(notification, notification_area);
         }
     }
 
-    fn handle_keypresses(&mut self) -> color_eyre::Result<()> {
+    fn handle_keypresses(&mut self) -> anyhow::Result<()> {
         if !crossterm::event::poll(Duration::from_millis(500))? {
             return Ok(());
         }

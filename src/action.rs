@@ -14,7 +14,7 @@ pub enum Action {
 }
 
 impl App {
-    pub fn perform_action(&mut self, action: Action) -> color_eyre::Result<()> {
+    pub fn perform_action(&mut self, action: Action) -> anyhow::Result<()> {
         if !matches!(action, Action::Cancel) && self.devices_table_state.selected().is_none() {
             self.devices_table_state.select_first();
             return Ok(());
