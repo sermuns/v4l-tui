@@ -1,6 +1,7 @@
 use std::{
     io,
     process::{Child, Command, Stdio},
+    time::Duration,
 };
 
 use itertools::Itertools;
@@ -12,7 +13,7 @@ use ratatui::{
     },
     prelude::*,
     style::Styled,
-    widgets::{Block, Gauge, Padding, Row, Table, TableState},
+    widgets::{Block, Borders, Gauge, Padding, Paragraph, Row, Table, TableState},
 };
 use v4l::{Device as V4lDevice, control::Value};
 
@@ -76,10 +77,6 @@ impl App {
             && child.try_wait()?.is_some()
         {
             self.ffplay_child = None;
-            self.notification = Some(Notification::new(
-                String::from("Preview closed"),
-                Severity::Info,
-            ));
         }
 
         Ok(())
@@ -216,6 +213,17 @@ impl App {
         }
     }
 
+    fn draw_preview_status(&self, frame: &mut Frame, area: Rect) {
+        let line = if let Some(child) = &self.ffplay_child {
+            Line::from_iter(["Currently previewing! Press 'p' again to close it."])
+        } else {
+            Line::from_iter(["Press 'p' to start preview"])
+        }
+        .centered();
+        let paragraph = Paragraph::new(line).block(Block::new().borders(Borders::TOP));
+        frame.render_widget(paragraph, area);
+    }
+
     fn draw(&mut self, frame: &mut Frame) {
         let area = frame.area();
 
@@ -229,35 +237,37 @@ impl App {
 
         let inner_area = block.inner(area);
 
+        let [body_area, preview_status_area] = inner_area.layout(&Layout::vertical([
+            Constraint::Fill(1),
+            Constraint::Length(2),
+        ]));
+
         match self.focused_block {
             FocusedBlock::DevicesTable => {
                 if self.devices.is_empty() {
-                    frame.render_widget("No camera devices detected.", inner_area);
+                    frame.render_widget("No camera devices detected.", body_area);
                 } else {
-                    self.draw_devices_table(frame, inner_area);
+                    self.draw_devices_table(frame, body_area);
                 }
             }
             FocusedBlock::DeviceConfig {
                 device_index,
                 selected_control_row,
-            } => self.draw_device_config(frame, inner_area, device_index, selected_control_row),
+            } => self.draw_device_config(frame, body_area, device_index, selected_control_row),
         }
 
+        self.draw_preview_status(frame, preview_status_area);
+
         if let Some(notification) = &self.notification {
-            let notification_area = Rect {
-                x: area.x,
-                y: area.bottom() - 3,
-                width: notification.len() as u16 + 2,
-                height: 3,
-            };
+            let notification_area = area.centered(Constraint::Length(25), Constraint::Length(10));
             frame.render_widget(notification, notification_area);
         }
     }
 
     fn handle_keypresses(&mut self) -> color_eyre::Result<()> {
-        // if !crossterm::event::poll(Duration::from_millis(200))? {
-        //     return Ok(());
-        // }
+        if !crossterm::event::poll(Duration::from_millis(500))? {
+            return Ok(());
+        }
 
         let crossterm::event::Event::Key(key_event) = crossterm::event::read()? else {
             return Ok(());
@@ -269,6 +279,9 @@ impl App {
             }
             KeyCode::Char('q') => self.quit = true,
             KeyCode::Char('r') => self.refresh_devices(),
+            KeyCode::Char('p') if let Some(mut child) = self.ffplay_child.take() => {
+                child.kill()?;
+            }
             KeyCode::Char('p') if let Some(i) = self.devices_table_state.selected() => {
                 self.start_preview(VecIndex(i))?;
             }
