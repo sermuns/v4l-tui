@@ -21,7 +21,7 @@ use crate::{
     action::Action,
     device::{Device, DeviceIndex, PossiblyLockedDescription, VecIndex},
     focused_block::FocusedBlock,
-    notification::{Notification, Severity},
+    notification::Notification,
 };
 
 const MAX_DEVICE_INDEX: usize = 10;
