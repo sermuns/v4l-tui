@@ -314,7 +314,14 @@ impl App {
         let index_str = self.devices[i].index_str();
         self.ffplay_child = Some(
             Command::new("ffplay")
-                .arg(format!("/dev/video{}", index_str))
+                .args([
+                    "-fflags",
+                    "nobuffer",
+                    "-flags",
+                    "-low_delay",
+                    "-i",
+                    &["/dev/video", index_str].concat(),
+                ])
                 .stderr(Stdio::null())
                 .stdout(Stdio::null())
                 .spawn()?,
