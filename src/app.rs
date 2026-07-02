@@ -219,15 +219,9 @@ impl App {
 
     fn draw_preview_status(&self, frame: &mut Frame, area: Rect) {
         let (line, foreground_color) = if self.ffplay_child.is_some() {
-            (
-                Line::from_iter(["Currently previewing! Press 'p' again to stop."]),
-                Color::Red,
-            )
+            ("Currently previewing! Press 'p' again to stop.", Color::Red)
         } else {
-            (
-                Line::from_iter(["Press 'p' to start preview."]),
-                Color::Green,
-            )
+            ("Press 'p' to start preview.", Color::Green)
         };
 
         let paragraph = Paragraph::new(line)
