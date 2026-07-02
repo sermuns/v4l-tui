@@ -54,7 +54,6 @@ impl App {
         while !self.quit {
             terminal.draw(|frame| self.draw(frame))?;
 
-            // self.handle_keypresses()?;
             if let Err(e) = self.handle_keypresses() {
                 self.notification = Some(Notification::new(format!("{:?}", e), Severity::Error));
             }
@@ -267,7 +266,7 @@ impl App {
         self.draw_preview_status(frame, preview_status_area);
 
         if let Some(notification) = &self.notification {
-            let notification_area = area.centered(Constraint::Fill(1), Constraint::Max(20));
+            let notification_area = area.centered(Constraint::Max(80), Constraint::Max(15));
             frame.render_widget(Clear, notification_area);
             frame.render_widget(notification, notification_area);
         }
@@ -281,6 +280,8 @@ impl App {
         let crossterm::event::Event::Key(key_event) = crossterm::event::read()? else {
             return Ok(());
         };
+
+        self.notification = None;
 
         match key_event.code {
             KeyCode::Char('c') if key_event.modifiers.contains(KeyModifiers::CONTROL) => {
@@ -304,6 +305,15 @@ impl App {
             }
             KeyCode::Char(' ') | KeyCode::Enter => self.perform_action(Action::Confirm)?,
             KeyCode::Esc | KeyCode::Backspace => self.perform_action(Action::Cancel)?,
+            KeyCode::Home | KeyCode::Char('§') => {
+                self.perform_action(Action::SetPercentage(0))?;
+            }
+            KeyCode::End | KeyCode::Char('0') => {
+                self.perform_action(Action::SetPercentage(100))?;
+            }
+            KeyCode::Char(num_char) if '1' <= num_char && num_char <= '9' => {
+                self.perform_action(Action::SetPercentage(10 * (num_char as u8 - '0' as u8)))?;
+            }
             _ => (),
         }
 

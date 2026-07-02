@@ -11,6 +11,7 @@ pub enum Action {
     MoveRight,
     Confirm,
     Cancel,
+    SetPercentage(u8),
 }
 
 impl App {
@@ -75,6 +76,10 @@ impl App {
                     Action::MoveLeft => {
                         device.modify_control(*selected_control_row, Modification::Decrement)?;
                     }
+                    Action::SetPercentage(percentage) => device.modify_control(
+                        *selected_control_row,
+                        Modification::SetPercentage(percentage),
+                    )?,
                     Action::Confirm => {
                         device.modify_control(*selected_control_row, Modification::Toggle)?;
                     }

@@ -29,6 +29,7 @@ pub enum Modification {
     Increment,
     Decrement,
     Toggle,
+    SetPercentage(u8),
 }
 
 pub struct PossiblyLockedDescription {
@@ -97,12 +98,20 @@ impl Device {
 
         let mut control = self.control(description)?;
 
+        let step = description.step.cast_signed();
+
         match (&mut control.value, modification) {
             (Value::Integer(value), Modification::Increment) if *value < description.maximum => {
-                *value += description.step.cast_signed();
+                *value += step;
             }
             (Value::Integer(value), Modification::Decrement) if *value > description.minimum => {
-                *value -= description.step.cast_signed();
+                *value -= step;
+            }
+            (Value::Integer(value), Modification::SetPercentage(percentage)) => {
+                let range = description.maximum - description.minimum;
+                let desired_value = range * percentage as i64 / 100;
+                let snapped_value = step * desired_value / step;
+                *value = description.minimum + snapped_value;
             }
             (Value::Boolean(value), _) => {
                 *value = !*value;
@@ -110,13 +119,18 @@ impl Device {
             _ => return Ok(()),
         }
 
-        self.v4l_device.set_control(control).with_context(|| {
-            format!(
-                "Unable to modify '{}' on '{}'",
-                description.name,
-                self.name()
-            )
-        })?;
+        match self.v4l_device.set_control(control) {
+            Err(e) if e.kind() != io::ErrorKind::InvalidInput => {
+                return Err(e).with_context(|| {
+                    format!(
+                        "Unable to modify '{}' on '{}'",
+                        description.name,
+                        self.name()
+                    )
+                });
+            }
+            _ => (),
+        }
 
         Ok(())
     }
