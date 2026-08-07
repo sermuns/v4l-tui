@@ -6,17 +6,11 @@ edition = "2024"
 license = "GPL-3.0-only"
 publish = false
 
-[workspace]
-members = ["xtask"]
-
-[workspace.dependencies]
-ratatui = { version = "0.30", default-features = false, features = ["crossterm", "layout-cache"] }
-
 [dependencies]
 anyhow = "1"
 const_format = "0.2"
 itertools = "0.15"
-ratatui.workspace = true
+ratatui = { version = "0.30", default-features = false, features = ["crossterm", "layout-cache"] }
 unicode-consts = "0.2"
 v4l = "0.14"
 
