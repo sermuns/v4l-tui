@@ -109,7 +109,7 @@ impl Device {
             }
             (Value::Integer(value), Modification::SetPercentage(percentage)) => {
                 let range = description.maximum - description.minimum;
-                let desired_value = range * percentage as i64 / 100;
+                let desired_value = range * i64::from(percentage) / 100;
                 let snapped_value = step * desired_value / step;
                 *value = description.minimum + snapped_value;
             }

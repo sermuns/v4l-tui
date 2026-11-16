@@ -311,8 +311,8 @@ impl App {
             KeyCode::End | KeyCode::Char('0') => {
                 self.perform_action(Action::SetPercentage(100))?;
             }
-            KeyCode::Char(num_char) if '1' <= num_char && num_char <= '9' => {
-                self.perform_action(Action::SetPercentage(10 * (num_char as u8 - '0' as u8)))?;
+            KeyCode::Char(num_char) if ('1'..='9').contains(&num_char) => {
+                self.perform_action(Action::SetPercentage(10 * (num_char as u8 - b'0')))?;
             }
             _ => (),
         }
