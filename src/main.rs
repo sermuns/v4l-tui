@@ -2,6 +2,7 @@ mod action;
 mod app;
 mod device;
 mod focused_block;
+mod gauge_ratio;
 mod notification;
 
 use crate::app::App;

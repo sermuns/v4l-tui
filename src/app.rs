@@ -191,8 +191,11 @@ impl App {
                     );
                     frame.render_widget(value_string.set_style(style), value_area);
 
-                    let ratio = (value - description.minimum) as f64
-                        / (description.maximum - description.minimum) as f64;
+                    let ratio = crate::gauge_ratio::control_ratio(
+                        value,
+                        description.minimum,
+                        description.maximum,
+                    );
                     frame.render_widget(
                         Gauge::default().ratio(ratio).set_style(style),
                         visualisation_area,
