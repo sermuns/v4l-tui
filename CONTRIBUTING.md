@@ -1,0 +1,1 @@
+- This project is done completely without LLMs. Do not create issues or PRs using them.
