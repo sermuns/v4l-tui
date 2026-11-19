@@ -986,9 +986,9 @@ checksum = "9e1c906769ad99c88eaa54e728060edef082f8e358ff32030cb7c7d315e81109"
 
 [[package]]
 name = "unicode-consts"
-version = "0.2.2"
+version = "0.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "749099088ab1140f5f5dfb0e5bd647d7d182ad4f91f511faa2ccc8c70cc45a6a"
+checksum = "ae7d4bf13e7b35e63f738444760b272c31ac30e629789f475b513e0ed2d9ed1e"
 
 [[package]]
 name = "unicode-ident"
